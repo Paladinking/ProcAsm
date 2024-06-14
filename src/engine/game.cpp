@@ -1,4 +1,5 @@
 #include "game.h"
+#include "log.h"
 #include <utility>
 
 SDL_Renderer *gRenderer;
@@ -89,6 +90,11 @@ void Game::run() {
             case SDL_TEXTINPUT:
                 handle_textinput(e.text);
                 break;
+            case SDL_WINDOWEVENT:
+                if (e.window.event == SDL_WINDOWEVENT_RESIZED ||
+                    e.window.event == SDL_WINDOWEVENT_DISPLAY_CHANGED) {
+                    handle_size_change();
+                }
             }
         }
         window_state.mouse_mask = SDL_GetMouseState(nullptr, nullptr);
@@ -211,6 +217,10 @@ void StateGame::handle_mousewheel(SDL_MouseWheelEvent &e) {
 
 void StateGame::handle_textinput(SDL_TextInputEvent &e) {
     states.top()->handle_textinput(e);
+}
+
+void StateGame::handle_size_change() {
+    states.top()->handle_size_change();
 }
 
 void StateGame::shutdown() {

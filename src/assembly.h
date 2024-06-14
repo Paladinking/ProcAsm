@@ -27,7 +27,11 @@ public:
     void handle_up(SDL_Keycode key, Uint8 mouse) override;
 
     void handle_textinput(const SDL_TextInputEvent &e) override;
+
+    void handle_size_change() override;
 private:
+    void set_font_size();
+
     void reset_cursor_animation();
 
     void delete_selection();
@@ -50,6 +54,9 @@ private:
     Sint64 ticks_remaining = 0;
 
     TextPosition cursor_pos {};
+
+    int cursor_width = 0, cursor_height = 0;
+    double dpi_scale = 0.0;
 
     TextBox cursor_text;
 

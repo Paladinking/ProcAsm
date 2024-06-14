@@ -34,6 +34,78 @@ void add_line(std::vector<TextBox> &lines, WindowState* window_state, int ix) {
     lines[ix].set_text("");
 }
 
+void GameState::set_font_size() {
+    // This is very cursed, but works on windows with the current font for sizes 1.0, 1.25, 1.5 and 1.75
+    double new_dpi_scale = std::min(static_cast<double>(window_state->window_width) /
+                                              window_state->screen_width,
+                                          static_cast<double>(window_state->window_height) /
+                                              window_state->screen_height);
+    if (new_dpi_scale == dpi_scale) {
+        return;
+    }
+    dpi_scale = new_dpi_scale;
+    int hpdi = 72, vdpi = 72;
+    TTF_SetFontSizeDPI(gFont, 20, hpdi, vdpi);
+    int target_w, target_h;
+    int base_w, base_h;
+    int w, h;
+    TTF_SizeUTF8(gFont, "a", &base_w, &base_h);
+    target_w = static_cast<int>(base_w * dpi_scale);
+    target_h = static_cast<int>(base_h * dpi_scale);
+    TTF_SetFontSizeDPI(gFont, 20, hpdi, vdpi);
+    TTF_SizeUTF8(gFont, "a", &w, &h);
+
+    while (true) {
+        if (w == target_w && h == target_h) break;
+        int old_hdpi = hpdi;
+        int old_vdpi = vdpi;
+        if (w > target_w) {
+            --hpdi;
+        } else if (w < target_w) {
+            ++hpdi;
+        }
+        if (h > target_h) {
+            --vdpi;
+        } else if (h < target_h) {
+            ++vdpi;
+        }
+        int new_w, new_h;
+        TTF_SetFontSizeDPI(gFont, 20, hpdi, vdpi);
+        TTF_SizeUTF8(gFont, "a", &new_w, &new_h);
+        if (new_w <= target_w) {
+            w = new_w;
+        } else {
+            hpdi = old_hdpi;
+        }
+        if (new_h <= target_h) {
+            h = new_h;
+        } else {
+            vdpi = old_vdpi;
+        }
+        if ((w < new_w || w == target_w) && (h < new_h || h == target_h)) {
+            break;
+        }
+    }
+    TTF_SetFontSizeDPI(gFont, 20, hpdi, vdpi);
+    TTF_SizeUTF8(gFont, "a", &w, &h);
+    cursor_width = w;
+    cursor_height = h;
+
+    for (auto& line: lines) {
+        line.set_dpi_ratio(dpi_scale);
+    }
+    cursor_text.set_dpi_ratio(dpi_scale);
+}
+
+void GameState::handle_size_change() {
+    LOG_DEBUG("Recalculating font size");
+    SDL_RenderGetLogicalSize(gRenderer, &window_state->screen_width,
+                             &window_state->screen_height);
+    SDL_GetRendererOutputSize(gRenderer, &window_state->window_width,
+                              &window_state->window_height);
+    set_font_size();
+}
+
 void GameState::init(WindowState *window_state) {
     SDL_ShowWindow(gWindow);
     SDL_RenderSetVSync(gRenderer, 1);
@@ -53,6 +125,8 @@ void GameState::init(WindowState *window_state) {
     cursor_text = TextBox(100, 100, 100, 100, "", *window_state);
     cursor_text.set_text_color(0xf0, 0xf0, 0xf0, 0xff);
     cursor_text.set_left_align(true);
+
+    set_font_size();
 }
 
 void GameState::render() {

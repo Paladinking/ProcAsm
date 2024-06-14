@@ -58,7 +58,9 @@ std::unique_ptr<SDL_context> context;
 
 int main(int argv, char* argc[]) {
     context = std::make_unique<SDL_context>();
+
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_DEBUG);
+
     StateGame game {new GameState(), 800, 800, "Processor assembly"};
     try {
         game.create();

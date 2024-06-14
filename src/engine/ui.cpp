@@ -4,6 +4,8 @@
 
 TTF_Font *TextBox::font;
 
+constexpr int DEFAULT_DPI = 70;
+
 void TextBox::init(TTF_Font *font_data) {
     TextBox::font = font_data;
     if (TextBox::font == nullptr) {
@@ -32,8 +34,7 @@ void TextBox::generate_texture() {
         texture.free();
         return;
     }
-
-    TTF_SetFontSizeDPI(font, 20, 87, 87);
+    //TTF_SetFontSizeDPI(font, 20, 114, 123);
     SDL_Surface *text_surface =
         TTF_RenderUTF8_Blended(font, text.c_str(), color);
     if (text_surface == nullptr) {
@@ -51,13 +52,20 @@ void TextBox::generate_texture() {
     texture = Texture(text_texture, width, height);
 
     TTF_SizeUTF8(font, text.c_str(), &width, &height);
-    LOG_DEBUG("Text '%s' with font size %d has size (%d, %d)", text.c_str(), 20, width, height);
+    if (width < 40) {
+        LOG_DEBUG("Size: %d, %d", width, height);
+    }
     if (left_align) {
         text_offset_x = 0;
     } else {
         text_offset_x = static_cast<int>((w - width / dpi_ratio) / 2);
     }
     text_offset_y = static_cast<int>((h - height / dpi_ratio) / 2);
+}
+
+void TextBox::set_dpi_ratio(double dpi) {
+    dpi_ratio = dpi;
+    generate_texture();
 }
 
 void TextBox::set_position(const int new_x, const int new_y) {
@@ -72,11 +80,11 @@ void TextBox::set_text(const std::string &new_text) {
 
 void TextBox::set_left_align(bool enabled) {
     left_align = enabled;
-    if (!enabled) {
+    if (enabled) {
         text_offset_x = 0;
     } else {
         int width, height;
-        TTF_SetFontSize(font, static_cast<int>(dpi_ratio * font_size));
+        //TTF_SetFontSize(font, static_cast<int>(dpi_ratio * font_size));
         TTF_SizeUTF8(font, text.c_str(), &width, &height);
         text_offset_x = static_cast<int>((w - width / dpi_ratio) / 2);
     }

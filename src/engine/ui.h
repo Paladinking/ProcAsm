@@ -69,6 +69,8 @@ public:
      */
     static void init(TTF_Font *font_data);
 
+    void set_dpi_ratio(double dpi);
+
 protected:
     int x{}, y{}, w{}, h{};
 

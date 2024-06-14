@@ -118,6 +118,8 @@ protected:
      */
     virtual void handle_textinput(SDL_TextInputEvent &e) {};
 
+    virtual void handle_size_change() {};
+
     virtual void shutdown() {};
 
 private:
@@ -193,6 +195,8 @@ public:
      */
     virtual void handle_textinput(const SDL_TextInputEvent &e) {};
 
+    virtual void handle_size_change() {};
+
     /**
      * Get the desired window width of this state.
      */
@@ -264,6 +268,8 @@ protected:
      * Sends a textinput-event to the top state.
      */
     void handle_textinput(SDL_TextInputEvent &e) override;
+
+    void handle_size_change() override;
 
     void shutdown() override;
 
