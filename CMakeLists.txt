@@ -18,7 +18,7 @@ set(ENGINGE_SRC
     ${ENGINE_DIR}/ui.cpp
 )
 
-add_executable(main src/main.cpp src/assembly.cpp ${ENGINGE_SRC})
+add_executable(main src/main.cpp src/assembly.cpp src/editbox.cpp ${ENGINGE_SRC})
 
 set(LIBRARIES 
     $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>

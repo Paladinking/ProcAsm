@@ -34,7 +34,7 @@ void TextBox::generate_texture() {
         texture.free();
         return;
     }
-    //TTF_SetFontSizeDPI(font, 20, 114, 123);
+
     SDL_Surface *text_surface =
         TTF_RenderUTF8_Blended(font, text.c_str(), color);
     if (text_surface == nullptr) {
@@ -52,9 +52,6 @@ void TextBox::generate_texture() {
     texture = Texture(text_texture, width, height);
 
     TTF_SizeUTF8(font, text.c_str(), &width, &height);
-    if (width < 40) {
-        LOG_DEBUG("Size: %d, %d", width, height);
-    }
     if (left_align) {
         text_offset_x = 0;
     } else {
