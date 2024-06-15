@@ -347,7 +347,11 @@ void Editbox::handle_keypress(SDL_Keycode key, const WindowState &window_state) 
     bool ctrl_pressed = window_state.keyboard_state[SDL_SCANCODE_LCTRL] ||
                         window_state.keyboard_state[SDL_SCANCODE_RCTRL];
 
-    if (key == SDLK_TAB || key == SDLK_KP_TAB) {
+    if (key == SDLK_HOME) {
+        move_cursor({cursor_pos.row, 0}, shift_pressed);
+    } else if (key == SDLK_END) {
+        move_cursor({cursor_pos.row, line_size(cursor_pos.row)}, shift_pressed);
+    } else if (key == SDLK_TAB || key == SDLK_KP_TAB) {
         insert_str(std::string(SPACES_PER_TAB, ' '), window_state, false);
     } else if (key == 'a' && ctrl_pressed) {
         selection_start = selection_base = {0, 0};

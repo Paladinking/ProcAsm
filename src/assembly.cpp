@@ -148,3 +148,11 @@ void GameState::handle_textinput(const SDL_TextInputEvent &e) {
     box.input_char(c, *window_state);
 }
 
+void GameState::handle_focus_change(bool focus) {
+    if (!focus) {
+        box.unselect();
+        mouse_down = false;
+        SDL_StopTextInput();
+    }
+}
+

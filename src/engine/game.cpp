@@ -94,6 +94,10 @@ void Game::run() {
                 if (e.window.event == SDL_WINDOWEVENT_RESIZED ||
                     e.window.event == SDL_WINDOWEVENT_DISPLAY_CHANGED) {
                     handle_size_change();
+                } else if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+                    handle_focus_change(false);
+                } else if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
+                    handle_focus_change(true);
                 }
             }
         }
@@ -221,6 +225,10 @@ void StateGame::handle_textinput(SDL_TextInputEvent &e) {
 
 void StateGame::handle_size_change() {
     states.top()->handle_size_change();
+}
+
+void StateGame::handle_focus_change(bool focus) {
+    states.top()->handle_focus_change(focus);
 }
 
 void StateGame::shutdown() {

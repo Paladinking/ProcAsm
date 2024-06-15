@@ -20,6 +20,8 @@ public:
     void handle_textinput(const SDL_TextInputEvent &e) override;
 
     void handle_size_change() override;
+
+    void handle_focus_change(bool focus) override;
 private:
     void set_font_size();
 
