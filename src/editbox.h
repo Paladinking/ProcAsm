@@ -36,19 +36,6 @@ public:
         pos = 0;
     }
 
-    void diff() {
-        EditAction& action = top();
-        std::string rep = action.text;
-        for (int i = 0; i < rep.size(); ++i) {
-            if (rep[i] == '\n') {
-                rep.insert(rep.begin() + i, '\\');
-                rep[++i] = 'n';
-            }
-        }
-        LOG_DEBUG("STACK_EDIT(%p) (%u): (%d, %d) - (%d, %d): '%s'", this, data_size, action.start.row, action.start.col, action.end.row, action.end.col, rep.c_str());
-
-    }
-
     void push(const EditAction& action) {
         std::string rep = action.text;
         for (int i = 0; i < rep.size(); ++i) {
@@ -106,17 +93,25 @@ public:
 
     void input_char(char c, const WindowState& window_state);
 private:
+    enum EditType {
+        NONE, WRITE, DELETE, BACKSPACE, INSERT, UNDO, REDO
+    } edit_action = NONE;
+
     int line_size(int row) const;
+
+    bool move_left(TextPosition &pos, int off) const;
+
+    bool move_right(TextPosition &pos, int off) const;
 
     TextPosition find_pos(int mouse_x, int mouse_y) const;
 
     void delete_region(TextPosition start, TextPosition end);
 
-    void delete_selection();
+    std::string extract_region(TextPosition start, TextPosition end) const;
 
-    std::string extract_selection() const;
+    bool insert_region(const std::string &str, const WindowState& window_state, TextPosition start, TextPosition end, EditAction& action);
 
-    bool insert_str(const std::string& str, const WindowState& window_state, bool undo, bool clear_redo = true);
+    bool insert_str(const std::string& str, const WindowState& window_state, EditType type = NONE);
 
     void clear_selection();
 
@@ -132,10 +127,6 @@ private:
 
     EditStack undo_stack {};
     EditStack redo_stack {};
-
-    enum {
-        NONE, WRITE, DELETE, BACKSPACE
-    } edit_action = NONE;
 
     TextPosition selection_start {};
     TextPosition selection_end {};

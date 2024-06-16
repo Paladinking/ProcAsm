@@ -9,7 +9,7 @@ constexpr int BOX_SIZE = 400;
 constexpr int BOX_TEXT_MARGIN = 16;
 constexpr int BOX_LINE_HEIGHT = 20;
 constexpr int BOX_CHAR_WIDTH = 8;
-constexpr int BOX_UNDO_BUFFER_SIZE = 100;
+constexpr int BOX_UNDO_BUFFER_SIZE = 1024;
 
 constexpr int SPACES_PER_TAB = 4;
 

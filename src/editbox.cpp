@@ -38,20 +38,20 @@ void add_line(std::vector<TextBox> &lines, const WindowState &window_state, int 
     lines[ix].set_text("");
 }
 
-std::string Editbox::extract_selection() const {
-    if (selection_start == selection_end) {
+std::string Editbox::extract_region(TextPosition start, TextPosition end) const {
+    if (start == end) {
         return "";
     }
-    if (selection_start.row == selection_end.row) {
-        return lines[selection_start.row].get_text().substr(selection_start.col,
-                                                         selection_end.col - selection_start.col);
+    if (start.row == end.row) {
+        return lines[start.row].get_text().substr(start.col,
+                                                  end.col - start.col);
     } else {
         std::stringstream res{};
-        res << lines[selection_start.row].get_text().substr(selection_start.col);
-        for (int row = selection_start.row + 1; row < selection_end.row; ++row) {
+        res << lines[start.row].get_text().substr(start.col);
+        for (int row = start.row + 1; row < end.row; ++row) {
             res << '\n' << lines[row].get_text();
         }
-        res << '\n' << lines[selection_end.row].get_text().substr(0, selection_end.col);
+        res << '\n' << lines[end.row].get_text().substr(0, end.col);
         return res.str();
     }
 }
@@ -76,74 +76,50 @@ void Editbox::delete_region(TextPosition start, TextPosition end) {
     lines.resize(rem_lines);
 }
 
-void Editbox::delete_selection() {
-    cursor_pos = selection_start;
-    if (selection_start.col + line_size(selection_end.row) - selection_end.col > MAX_LINE_WIDTH) {
-        delete_region(selection_start, {selection_start.row, line_size(selection_start.row)});
-        delete_region({selection_start.row + 1, 0}, selection_end);
-    } else {
-        delete_region(selection_start, selection_end);
-    }
-    clear_selection();
-}
-
-bool Editbox::insert_str(const std::string &str, const WindowState& window_state, bool undo, bool clear_redo) {
-    if (selection_start == selection_end) {
-        clear_selection();
-    } else {
-        cursor_pos = selection_start;
-    }
-    std::string res = str;
-    for (int i = 0; i < res.size(); ++i) {
-        if (res[i] == '\n') {
-            res.insert(res.begin() + i, '\\');
-            res[++i] = 'n';
-        }
-    }
-    LOG_DEBUG("INSERT (%d, %d) - (%d, %d): '%s'", selection_start.row, selection_start.col, selection_end.row, selection_end.col, res.c_str());
-
+bool Editbox::insert_region(const std::string &str, const WindowState& window_state, TextPosition start, TextPosition end, EditAction& action) {
     int new_rows = static_cast<int>(std::count(str.begin(), str.end(), '\n'));
-    if (lines.size() + new_rows - (selection_end.row - selection_start.row) > MAX_LINES) {
+    if (lines.size() + new_rows - (end.row - start.row) > MAX_LINES) {
         // Would add too many lines
         return false;
     }
-
-    EditAction action;
     if (new_rows == 0) {
+        std::string old = extract_region(start, end);
         bool split_delete = false;
-        if (selection_start.row == selection_end.row) {
-            if (str.size() + selection_start.col + line_size(selection_end.row) - selection_end.col > MAX_LINE_WIDTH) {
+        if (start.row == end.row) {
+            if (str.size() + start.col + line_size(end.row) - end.col > MAX_LINE_WIDTH) {
                 // The first line would become too long
                 return false;
             }
-        } else if (str.size() + selection_start.col > MAX_LINE_WIDTH) {
+            delete_region(start, end);
+        } else if (str.size() + start.col > MAX_LINE_WIDTH) {
             // The first line would become too long
             return false;
-        }  else if (str.size() + selection_start.col + line_size(selection_end.row) - selection_end.col > MAX_LINE_WIDTH) {
+        }  else if (str.size() + start.col + line_size(end.row) - end.col > MAX_LINE_WIDTH) {
+            delete_region(start, {start.row, line_size(start.row)});
+            delete_region({start.row + 1, 0}, end);
             split_delete = true;
-        }
-        // Note: delete_region would not work here
-        std::string old = extract_selection();
-        TextPosition start_pos = cursor_pos;
-        delete_selection();
-        std::string s = lines[cursor_pos.row].get_text();
-        s.insert(cursor_pos.col, str);
-        lines[cursor_pos.row].set_text(s);
-        cursor_pos.col += static_cast<int>(str.size());
-        if (split_delete) {
-            action = {start_pos, {cursor_pos.row + 1, 0}, old};
         } else {
-            action = {start_pos, cursor_pos, old};
+            delete_region(start, end);
+        }
+        TextPosition start_pos = start;
+        std::string s = lines[start.row].get_text();
+        s.insert(start.col, str);
+        lines[start.row].set_text(s);
+        start.col += static_cast<int>(str.size());
+        if (split_delete) {
+            action = {start_pos, {start.row + 1, 0}, old};
+        } else {
+            action = {start_pos, start, old};
         }
     } else {
         size_t ix = str.find('\n');
         std::string first = str.substr(0, ix);
-        if (selection_start.col + first.size() > MAX_LINE_WIDTH) {
+        if (start.col + first.size() > MAX_LINE_WIDTH) {
             return false;
         }
         size_t last_ix = str.rfind('\n');
         std::string last = str.substr(last_ix + 1);
-        if (line_size(selection_end.row) - selection_end.col + last.size() > MAX_LINE_WIDTH) {
+        if (line_size(end.row) - end.col + last.size() > MAX_LINE_WIDTH) {
             return false;
         }
         std::string rem = str.substr(ix + 1, last_ix - ix);
@@ -155,38 +131,51 @@ bool Editbox::insert_str(const std::string &str, const WindowState& window_state
             }
             offset = pos + 1;
         }
-        std::string old = extract_selection();
-        delete_region(selection_start, selection_end);
-        std::string s = lines[cursor_pos.row].get_text();
-        std::string end = s.substr(cursor_pos.col);
-        s.erase(cursor_pos.col);
-        lines[cursor_pos.row].set_text(s + first);
+        std::string old = extract_region(start, end);
+        delete_region(start, end);
+        std::string s = lines[start.row].get_text();
+        std::string end_str = s.substr(start.col);
+        s.erase(start.col);
+        lines[start.row].set_text(s + first);
         offset = 0;
         for (int i = 1; i <= new_rows; ++i) {
-            add_line(lines, window_state, cursor_pos.row + i);
+            add_line(lines, window_state, start.row + i);
         }
         for (int i = 1; i < new_rows; ++i) {
             size_t pos = rem.find('\n', offset);
-            lines[cursor_pos.row + i].set_text(rem.substr(offset, pos - offset));
+            lines[start.row + i].set_text(rem.substr(offset, pos - offset));
             offset = pos + 1;
         }
-        TextPosition start_pos = cursor_pos;
-        lines[cursor_pos.row + new_rows].set_text(last + end);
-        cursor_pos.row += new_rows;
-        cursor_pos.col = static_cast<int>(last.size());
-        action = {start_pos, cursor_pos, old};
-        clear_selection();
-        reset_cursor_animation();
+        TextPosition start_pos = start;
+        lines[start.row + new_rows].set_text(last + end_str);
+        start.row += new_rows;
+        start.col = static_cast<int>(last.size());
+        action = {start_pos, start, old};
     }
-    move_cursor(cursor_pos, false);
-    if (undo) {
+    return true;
+}
+
+bool Editbox::insert_str(const std::string &str, const WindowState& window_state, EditType edit) {
+    EditAction action;
+    if (selection_start == selection_end) {
+        if (!insert_region(str, window_state, cursor_pos, cursor_pos, action)) {
+            return false;
+        }
+    } else if (!insert_region(str, window_state, selection_start, selection_end, action)) {
+        return false;
+    }
+    cursor_pos = action.end;
+    clear_selection();
+    reset_cursor_animation();
+    if (edit == UNDO) {
         redo_stack.push(action);
     } else {
-        if (clear_redo) {
+        if (edit != REDO) {
             redo_stack.clear();
         }
         undo_stack.push(action);
     }
+    edit_action = edit;
     return true;
 }
 
@@ -194,7 +183,6 @@ void Editbox::clear_selection() {
     selection_start = cursor_pos;
     selection_end = cursor_pos;
     selection_base = cursor_pos;
-    edit_action = NONE;
 }
 
 TextPosition Editbox::find_pos(int mouse_x, int mouse_y) const {
@@ -228,8 +216,8 @@ void Editbox::move_cursor(TextPosition pos, bool select) {
     if (select) {
         update_selection(pos);
     } else {
-        selection_base = pos;
         cursor_pos = pos;
+        clear_selection();
     }
     edit_action = NONE;
     reset_cursor_animation();
@@ -241,31 +229,20 @@ void Editbox::input_char(char c, const WindowState& window_state) {
     }
 
     if (valid_char(c)) {
-        if (selection_start != selection_end) {
-            if (insert_str(std::string(1, c), window_state, false)) {
-                edit_action = WRITE;
-            }
-        } else {
-            std::string s = lines[cursor_pos.row].get_text();
-            if (s.size() == MAX_LINE_WIDTH) {
-                return;
-            }
-            LOG_DEBUG("CHAR (%d, %d), '%c'", cursor_pos.row, cursor_pos.col, c);
-            s.insert(s.begin() + cursor_pos.col, c);
-            TextPosition start = cursor_pos;
-            ++cursor_pos.col;
-            lines[cursor_pos.row].set_text(s);
-            selection_base = cursor_pos;
-            reset_cursor_animation();
-            redo_stack.clear();
+        EditAction action;
+        if (insert_region(std::string(1, c), window_state, selection_start, selection_end, action)) {
             if (edit_action == WRITE) {
-                ++undo_stack.top().end.col;
-                undo_stack.diff();
+                undo_stack.top().end = action.end;
+                LOG_DEBUG("CHANGE: (%d, %d) - (%d, %d)", undo_stack.top().start.row, undo_stack.top().start.col, undo_stack.top().end.row, undo_stack.top().end.col);
             } else {
                 edit_action = WRITE;
-                undo_stack.push({start, cursor_pos, {}});
+                redo_stack.clear();
+                undo_stack.push(action);
             }
+            cursor_pos = action.end;
+            clear_selection();
         }
+        reset_cursor_animation();
     }
 }
 
@@ -291,8 +268,8 @@ void Editbox::select(const WindowState& window_state) {
     if (shift_pressed) {
         update_selection(pos);
     } else {
-        selection_base = pos;
         cursor_pos = pos;
+        clear_selection();
     }
     edit_action = NONE;
 
@@ -303,6 +280,7 @@ void Editbox::select(const WindowState& window_state) {
 void Editbox::unselect() {
     box_selected = false;
     show_cursor = false;
+    edit_action = NONE;
 }
 
 void Editbox::reset_cursor_animation() {
@@ -312,6 +290,36 @@ void Editbox::reset_cursor_animation() {
 
 int Editbox::line_size(int row) const {
     return static_cast<int>(lines[row].get_text().size());
+}
+
+bool Editbox::move_left(TextPosition &pos, int off) const {
+    TextPosition old = pos;
+    while (pos.col - off < 0) {
+        if (pos.row == 0) {
+            pos = old;
+            return false;
+        }
+        off -= 1 + pos.col;
+        --pos.row;
+        pos.col = line_size(pos.row);
+    }
+    pos.col -= off;
+    return true;
+}
+
+bool Editbox::move_right(TextPosition &pos, int off) const {
+    TextPosition old = pos;
+    while (pos.col + off > line_size(pos.row)) {
+        if (pos.row == lines.size() - 1) {
+            pos = old;
+            return false;
+        }
+        off -= 1 + line_size(pos.row) - pos.col;
+        ++pos.row;
+        pos.col = 0;
+    }
+    pos.col += off;
+    return true;
 }
 
 void validate_string(std::string& s) {
@@ -352,7 +360,7 @@ void Editbox::handle_keypress(SDL_Keycode key, const WindowState &window_state) 
     } else if (key == SDLK_END) {
         move_cursor({cursor_pos.row, line_size(cursor_pos.row)}, shift_pressed);
     } else if (key == SDLK_TAB || key == SDLK_KP_TAB) {
-        insert_str(std::string(SPACES_PER_TAB, ' '), window_state, false);
+        insert_str(std::string(SPACES_PER_TAB, ' '), window_state);
     } else if (key == 'a' && ctrl_pressed) {
         selection_start = selection_base = {0, 0};
         selection_end = {static_cast<int>(lines.size() - 1),
@@ -367,7 +375,7 @@ void Editbox::handle_keypress(SDL_Keycode key, const WindowState &window_state) 
             selection_start = action.start;
             selection_end = action.end;
             cursor_pos = selection_start;
-            insert_str(action.text, window_state, false, false);
+            insert_str(action.text, window_state, REDO);
             edit_action = NONE;
         }
     } else if (key == 'z' && ctrl_pressed) {
@@ -378,7 +386,7 @@ void Editbox::handle_keypress(SDL_Keycode key, const WindowState &window_state) 
             selection_start = action.start;
             selection_end = action.end;
             cursor_pos = selection_start;
-            insert_str(action.text, window_state, true, false);
+            insert_str(action.text, window_state, UNDO);
             edit_action = NONE;
         }
     } else if (key == 'v' && ctrl_pressed) {
@@ -386,16 +394,16 @@ void Editbox::handle_keypress(SDL_Keycode key, const WindowState &window_state) 
         std::string s{clip};
         validate_string(s);
         SDL_free(clip);
-        insert_str(s, window_state, false);
+        insert_str(s, window_state);
     } else if ((key == 'c' || key == 'x') && ctrl_pressed) {
         if (selection_start == selection_end) {
             return;
         }
-        std::string s = extract_selection();
+        std::string s = extract_region(selection_start, selection_end);
         LOG_DEBUG("Copying '%s' to clipboard", s.c_str());
         SDL_SetClipboardText(s.c_str());
         if (key == 'x') {
-            insert_str("", window_state, false);
+            insert_str("", window_state);
         }
     } else if (key == SDLK_DOWN) {
         if (!shift_pressed && selection_start != selection_end) {
@@ -430,107 +438,67 @@ void Editbox::handle_keypress(SDL_Keycode key, const WindowState &window_state) 
     } else if (key == SDLK_LEFT) {
         if (!shift_pressed && selection_start != selection_end) {
             cursor_pos = selection_start;
-            clear_selection();
+            move_cursor(cursor_pos, false);
         } else {
-            if (cursor_pos.col == 0) {
-                if (cursor_pos.row == 0) {
-                    return;
-                }
-                cursor_pos = {cursor_pos.row - 1, line_size(cursor_pos.row - 1)};
-            } else {
-                --cursor_pos.col;
+            if (!move_left(cursor_pos, 1)) {
+                return;
             }
             move_cursor(cursor_pos, shift_pressed);
         }
     } else if (key == SDLK_RIGHT) {
         if (!shift_pressed && selection_start != selection_end) {
             cursor_pos = selection_end;
-            clear_selection();
+            move_cursor(cursor_pos, false);
         } else {
-            if (cursor_pos.col == line_size(cursor_pos.row)) {
-                if (cursor_pos.row == lines.size() - 1) {
-                    return;
-                }
-                cursor_pos = {cursor_pos.row + 1, 0};
-            } else {
-                ++cursor_pos.col;
+            if (!move_right(cursor_pos, 1)) {
+                return;
             }
             move_cursor(cursor_pos, shift_pressed);
         }
     } else if (key == SDLK_DELETE) {
-        if (selection_start != selection_end) {
-            if (insert_str("", window_state, false)) {
-                edit_action = DELETE;
+        reset_cursor_animation();
+        if (selection_start == selection_end) {
+            if (!move_right(selection_end, 1)) {
+                return;
             }
-        } else {
-            char c;
-            if (cursor_pos.col == line_size(cursor_pos.row)) {
-                if (cursor_pos.row == lines.size() - 1) {
-                    return;
-                }
-                if (line_size(cursor_pos.row) + line_size(cursor_pos.row + 1) > MAX_LINE_WIDTH) {
-                    return;
-                }
-                TextPosition end = {cursor_pos.row + 1, 0};
-                c = '\n';
-                delete_region(cursor_pos, end);
-            } else {
-                std::string s = lines[cursor_pos.row].get_text();
-                c = s[cursor_pos.col];
-                s.erase(cursor_pos.col, 1);
-                lines[cursor_pos.row].set_text(s);
-            }
-            redo_stack.clear();
+        }
+        EditAction action;
+        if (insert_region("", window_state, selection_start, selection_end, action)) {
             if (edit_action == DELETE) {
-                undo_stack.top().start = undo_stack.top().end = cursor_pos;
-                undo_stack.top().text.push_back(c);
-                undo_stack.diff();
+                EditAction& old = undo_stack.top();
+                old.start = old.end = action.start;
+                old.text = old.text + action.text;
             } else {
+                redo_stack.clear();
+                undo_stack.push(action);
                 edit_action = DELETE;
-                undo_stack.push({cursor_pos, cursor_pos, std::string(1, c)});
             }
-            selection_base = cursor_pos;
-            reset_cursor_animation();
+            cursor_pos = action.start;
+            clear_selection();
         }
     } else if (key == SDLK_BACKSPACE) {
-        if (selection_start != selection_end) {
-            if (insert_str("", window_state, false)) {
-                edit_action = BACKSPACE;
+        reset_cursor_animation();
+        if (selection_start == selection_end) {
+            if (!move_left(selection_start, 1)) {
+                return;
             }
-        } else {
-            char c;
-            if (cursor_pos.col == 0) {
-                if (cursor_pos.row == 0) {
-                    return;
-                }
-                if (line_size(cursor_pos.row) + line_size(cursor_pos.row - 1) > MAX_LINE_WIDTH) {
-                    return;
-                }
-                TextPosition end = cursor_pos;
-                c = '\n';
-                cursor_pos = {cursor_pos.row - 1, line_size(cursor_pos.row - 1)};
-                delete_region(cursor_pos, end);
-            } else {
-                std::string s = lines[cursor_pos.row].get_text();
-                c = s[cursor_pos.col - 1];
-                s.erase(cursor_pos.col - 1, 1);
-                --cursor_pos.col;
-                lines[cursor_pos.row].set_text(s);
-            }
-            redo_stack.clear();
+        }
+        EditAction action;
+        if (insert_region("", window_state, selection_start, selection_end, action)) {
             if (edit_action == BACKSPACE) {
-                undo_stack.top().start = undo_stack.top().end = cursor_pos;
-                undo_stack.top().text.insert(undo_stack.top().text.begin(), c);
-                undo_stack.diff();
+                EditAction& old = undo_stack.top();
+                old.start = old.end = action.start;
+                old.text = action.text + old.text;
             } else {
+                redo_stack.clear();
+                undo_stack.push(action);
                 edit_action = BACKSPACE;
-                undo_stack.push({cursor_pos, cursor_pos, std::string(1, c)});
             }
-            selection_base = cursor_pos;
-            reset_cursor_animation();
+            cursor_pos = action.start;
+            clear_selection();
         }
     } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
-        insert_str("\n", window_state, false);
+        insert_str("\n", window_state);
     }
 }
 
