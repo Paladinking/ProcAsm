@@ -23,6 +23,7 @@ struct EditAction {
     TextPosition end {};
 
     std::string text {};
+    bool chain = false;
 };
 
 class EditStack {

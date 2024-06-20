@@ -157,23 +157,35 @@ bool Editbox::insert_region(const std::string &str, const WindowState& window_st
 
 bool Editbox::insert_str(const std::string &str, const WindowState& window_state, EditType edit) {
     EditAction action;
-    if (selection_start == selection_end) {
-        if (!insert_region(str, window_state, cursor_pos, cursor_pos, action)) {
-            return false;
-        }
-    } else if (!insert_region(str, window_state, selection_start, selection_end, action)) {
+    if (!insert_region(str, window_state, selection_start, selection_end, action)) {
         return false;
     }
     cursor_pos = action.end;
     clear_selection();
     reset_cursor_animation();
+
+    if (edit != NONE && edit == edit_action) {
+        action.chain = true;
+    }
     if (edit == UNDO) {
         redo_stack.push(action);
-    } else {
-        if (edit != REDO) {
-            redo_stack.clear();
-        }
+    } else if (edit == REDO) {
         undo_stack.push(action);
+    } else if (edit != edit_action || edit == NONE) {
+        redo_stack.clear();
+        undo_stack.push(action);
+    } else {
+        redo_stack.clear();
+        if (undo_stack.size() == 0) {
+            undo_stack.push(action);
+        } else {
+            if (undo_stack.top().end == action.start) {
+                undo_stack.top().end = action.end;
+                undo_stack.top().text += action.text;
+            } else {
+                undo_stack.push(action);
+            }
+        }
     }
     edit_action = edit;
     return true;
@@ -230,19 +242,7 @@ void Editbox::input_char(char c, const WindowState& window_state) {
 
     if (valid_char(c)) {
         EditAction action;
-        if (insert_region(std::string(1, c), window_state, selection_start, selection_end, action)) {
-            if (edit_action == WRITE) {
-                undo_stack.top().end = action.end;
-                LOG_DEBUG("CHANGE: (%d, %d) - (%d, %d)", undo_stack.top().start.row, undo_stack.top().start.col, undo_stack.top().end.row, undo_stack.top().end.col);
-            } else {
-                edit_action = WRITE;
-                redo_stack.clear();
-                undo_stack.push(action);
-            }
-            cursor_pos = action.end;
-            clear_selection();
-        }
-        reset_cursor_animation();
+        insert_str(std::string(1, c), window_state, WRITE);
     }
 }
 
@@ -371,22 +371,28 @@ void Editbox::handle_keypress(SDL_Keycode key, const WindowState &window_state) 
         if (selection_start != selection_end) {
             clear_selection();
         } else if (redo_stack.size() > 0) {
-            EditAction action = redo_stack.pop();
-            selection_start = action.start;
-            selection_end = action.end;
-            cursor_pos = selection_start;
-            insert_str(action.text, window_state, REDO);
+            EditAction action;
+            do {
+                action = redo_stack.pop();
+                selection_start = action.start;
+                selection_end = action.end;
+                cursor_pos = selection_start;
+                insert_str(action.text, window_state, REDO);
+            } while (action.chain);
             edit_action = NONE;
         }
     } else if (key == 'z' && ctrl_pressed) {
         if (selection_start != selection_end) {
             clear_selection();
         } else if (undo_stack.size() > 0) {
-            EditAction action = undo_stack.pop();
-            selection_start = action.start;
-            selection_end = action.end;
-            cursor_pos = selection_start;
-            insert_str(action.text, window_state, UNDO);
+            EditAction action;
+            do {
+                action = undo_stack.pop();
+                selection_start = action.start;
+                selection_end = action.end;
+                cursor_pos = selection_start;
+                insert_str(action.text, window_state, UNDO);
+            } while (action.chain);
             edit_action = NONE;
         }
     } else if (key == 'v' && ctrl_pressed) {
@@ -462,20 +468,7 @@ void Editbox::handle_keypress(SDL_Keycode key, const WindowState &window_state) 
                 return;
             }
         }
-        EditAction action;
-        if (insert_region("", window_state, selection_start, selection_end, action)) {
-            if (edit_action == DELETE) {
-                EditAction& old = undo_stack.top();
-                old.start = old.end = action.start;
-                old.text = old.text + action.text;
-            } else {
-                redo_stack.clear();
-                undo_stack.push(action);
-                edit_action = DELETE;
-            }
-            cursor_pos = action.start;
-            clear_selection();
-        }
+        insert_str("", window_state, DELETE);
     } else if (key == SDLK_BACKSPACE) {
         reset_cursor_animation();
         if (selection_start == selection_end) {
@@ -483,20 +476,7 @@ void Editbox::handle_keypress(SDL_Keycode key, const WindowState &window_state) 
                 return;
             }
         }
-        EditAction action;
-        if (insert_region("", window_state, selection_start, selection_end, action)) {
-            if (edit_action == BACKSPACE) {
-                EditAction& old = undo_stack.top();
-                old.start = old.end = action.start;
-                old.text = action.text + old.text;
-            } else {
-                redo_stack.clear();
-                undo_stack.push(action);
-                edit_action = BACKSPACE;
-            }
-            cursor_pos = action.start;
-            clear_selection();
-        }
+        insert_str("", window_state, BACKSPACE);
     } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
         insert_str("\n", window_state);
     }
