@@ -18,7 +18,19 @@ set(ENGINGE_SRC
     ${ENGINE_DIR}/ui.cpp
 )
 
-add_executable(main src/main.cpp src/assembly.cpp src/editbox.cpp ${ENGINGE_SRC})
+add_executable(embed tools/embed.c)
+
+set(FONT ${CMAKE_SOURCE_DIR}/flexi-ibm-vga-true.regular.ttf)
+set(FONT_OBJ ${CMAKE_CURRENT_BINARY_DIR}/font${CMAKE_C_OUTPUT_EXTENSION})
+
+add_executable(main src/main.cpp src/assembly.cpp src/editbox.cpp src/editlines.cpp ${ENGINGE_SRC} ${FONT_OBJ})
+
+add_executable(line_test src/editlines.cpp)
+
+add_custom_command(OUTPUT ${FONT_OBJ} ${PROJECT_SOURCE_DIR}/tools/font.h
+        COMMAND embed ARGS ${FONT} -H ${PROJECT_SOURCE_DIR}/tools/font.h -o ${FONT_OBJ} -smono_font
+        DEPENDS ${FONT}
+)
 
 set(LIBRARIES 
     $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
@@ -30,4 +42,4 @@ set(LIBRARIES
 
 target_link_libraries(main PUBLIC ${LIBRARIES})
 
-target_include_directories(main PUBLIC ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(main PUBLIC ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/tools)

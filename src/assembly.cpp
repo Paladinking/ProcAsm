@@ -90,7 +90,8 @@ void GameState::init(WindowState *window_state) {
     LOG_INFO("Physical size: %d, %d\n", window_state->window_width, window_state->window_height);
     LOG_INFO("Logical size: %d, %d\n", window_state->screen_width, window_state->screen_width);
 
-    box = Editbox(WIDTH / 2 - BOX_SIZE / 2, HEIGHT / 2 - BOX_SIZE / 2, *window_state);
+    box.~Editbox();
+    new (&box)Editbox{WIDTH / 2 - BOX_SIZE / 2, HEIGHT / 2 - BOX_SIZE / 2, *window_state };
 
     set_font_size();
 }
@@ -99,7 +100,7 @@ void GameState::render() {
     SDL_SetRenderDrawColor(gRenderer, 0x20, 0x20, 0x20, 0xff);
     SDL_RenderClear(gRenderer);
 
-    box.render(*window_state);
+    box.render();
 
     SDL_SetRenderDrawColor(gRenderer, 0xf0, 0xf0, 0xf0, 0xff);
 
@@ -113,7 +114,7 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
         return;
     }
 
-    box.tick(delta, mouse_down, *window_state);
+    box.tick(delta, mouse_down);
 }
 
 void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {
@@ -123,19 +124,20 @@ void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {
 }
 
 void GameState::handle_down(const SDL_Keycode key, const Uint8 mouse) {
+    LOG_DEBUG("Down event");
     if (key == SDLK_ESCAPE) {
         should_exit = true;
     } else if (mouse == SDL_BUTTON_LEFT) {
         mouse_down = true;
         if (box.is_pressed(window_state->mouseX, window_state->mouseY)) {
             SDL_StartTextInput();
-            box.select(*window_state);
+            box.select();
         } else {
             box.unselect();
             SDL_StopTextInput();
         }
     } else {
-        box.handle_keypress(key, *window_state);
+        box.handle_keypress(key);
     }
 }
 
@@ -145,7 +147,7 @@ void GameState::handle_textinput(const SDL_TextInputEvent &e) {
         return;
     }
     char c = e.text[0];
-    box.input_char(c, *window_state);
+    box.input_char(c);
 }
 
 void GameState::handle_focus_change(bool focus) {

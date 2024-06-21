@@ -61,7 +61,7 @@ int main(int argv, char* argc[]) {
 
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_DEBUG);
 
-    StateGame game {new GameState(), 800, 800, "Processor assembly"};
+    StateGame game {new GameState(), 800, 800, "Text box!!!"};
     try {
         game.create();
         game.run();

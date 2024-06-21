@@ -2,123 +2,45 @@
 #define PROCASM_EDITBOX_H
 
 #include "config.h"
+#include "editlines.h"
 #include "engine/game.h"
 #include "engine/log.h"
 #include "engine/ui.h"
 #include <vector>
 
-struct TextPosition {
-    int row, col;
-
-    bool operator<(const TextPosition& other) const;
-    bool operator>(const TextPosition& other) const;
-    bool operator<=(const TextPosition& other) const;
-    bool operator>=(const TextPosition& other) const;
-    bool operator==(const TextPosition& other) const;
-    bool operator!=(const TextPosition& other) const;
-};
-
-struct EditAction {
-    TextPosition start {};
-    TextPosition end {};
-
-    std::string text {};
-    bool chain = false;
-};
-
-class EditStack {
-public:
-    unsigned size() const {
-        return data_size;
-    }
-
-    void clear() {
-        data_size = 0;
-        pos = 0;
-    }
-
-    void push(const EditAction& action) {
-        std::string rep = action.text;
-        for (int i = 0; i < rep.size(); ++i) {
-            if (rep[i] == '\n') {
-                rep.insert(rep.begin() + i, '\\');
-                rep[++i] = 'n';
-            }
-        }
-        LOG_DEBUG("STACK_APPEND(%p) (%u): (%d, %d) - (%d, %d): '%s'", this, data_size, action.start.row, action.start.col, action.end.row, action.end.col, rep.c_str());
-        if (data_size < BOX_UNDO_BUFFER_SIZE) {
-            ++data_size;
-        }
-        if (pos == data.size()) {
-            data.push_back(action);
-        } else {
-            data[pos] = action;
-        }
-        pos = (pos + 1) % BOX_UNDO_BUFFER_SIZE;
-    }
-
-    EditAction& top() {
-        return data[(pos + BOX_UNDO_BUFFER_SIZE - 1) % BOX_UNDO_BUFFER_SIZE];
-    }
-
-    EditAction pop() {
-        --data_size;
-        EditAction res = std::move(top());
-        pos = (pos + BOX_UNDO_BUFFER_SIZE - 1) % BOX_UNDO_BUFFER_SIZE;
-        return res;
-    }
-private:
-    unsigned pos {0}, data_size {0};
-    std::vector<EditAction> data {};
-};
+void change_callback(TextPosition start, TextPosition end, int size, void* box);
 
 class Editbox {
 public:
     Editbox(int x, int y, const WindowState &window_state);
 
+    Editbox(Editbox&& other) = delete;
+    Editbox(const Editbox& other) = delete;
+    Editbox& operator=(Editbox&& other) = delete;
+    Editbox& operator=(const Editbox& other) = delete;
+
     Editbox() = default;
 
-    void render(WindowState &window_state);
+    void render();
 
     void set_dpi_scale(double dpi);
 
-    void tick(Uint64 passed, bool mouse_down, const WindowState& window_state);
+    void tick(Uint64 passed, bool mouse_down);
 
     [[nodiscard]] bool is_pressed(int mouse_x, int mouse_y) const;
 
-    void handle_keypress(SDL_Keycode key, const WindowState &window_state);
+    void handle_keypress(SDL_Keycode key);
 
-    void select(const WindowState& window_state);
+    void select();
 
     void unselect();
 
-    void input_char(char c, const WindowState& window_state);
+    void input_char(char c);
 private:
-    enum EditType {
-        NONE, WRITE, DELETE, BACKSPACE, INSERT, UNDO, REDO
-    } edit_action = NONE;
-
-    int line_size(int row) const;
-
-    bool move_left(TextPosition &pos, int off) const;
-
-    bool move_right(TextPosition &pos, int off) const;
+    friend void change_callback(TextPosition, TextPosition, int, void*);
+    void change_callback(TextPosition start, TextPosition end, int removed);
 
     TextPosition find_pos(int mouse_x, int mouse_y) const;
-
-    void delete_region(TextPosition start, TextPosition end);
-
-    std::string extract_region(TextPosition start, TextPosition end) const;
-
-    bool insert_region(const std::string &str, const WindowState& window_state, TextPosition start, TextPosition end, EditAction& action);
-
-    bool insert_str(const std::string& str, const WindowState& window_state, EditType type = NONE);
-
-    void clear_selection();
-
-    void move_cursor(TextPosition pos, bool select);
-
-    void update_selection(TextPosition pos);
 
     void reset_cursor_animation();
 
@@ -126,19 +48,14 @@ private:
 
     bool box_selected = false;
 
-    EditStack undo_stack {};
-    EditStack redo_stack {};
+    EditLines lines {MAX_LINES, MAX_LINE_WIDTH, ::change_callback, this};
 
-    TextPosition selection_start {};
-    TextPosition selection_end {};
-    TextPosition selection_base {};
+    std::vector<TextBox> boxes;
 
     bool show_cursor = false;
     Sint64 ticks_remaining = 0;
 
-    TextPosition cursor_pos {};
-
-    std::vector<TextBox> lines {};
+    const WindowState* window_state {nullptr};
 };
 
 

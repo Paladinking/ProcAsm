@@ -3,253 +3,43 @@
 #include "engine/log.h"
 #include <sstream>
 
-bool TextPosition::operator<(const TextPosition &other) const {
-    if (other.row == row) {
-        return col < other.col;
-    }
-    return row < other.row;
-}
-bool TextPosition::operator>(const TextPosition &other) const {
-    return (other < *this);
-}
-bool TextPosition::operator<=(const TextPosition &other) const {
-    return !(other < *this);
-}
-bool TextPosition::operator>=(const TextPosition &other) const {
-    return !(*this < other);
-}
-bool TextPosition::operator==(const TextPosition &other) const {
-    return col == other.col && row == other.row;
-}
-bool TextPosition::operator!=(const TextPosition &other) const {
-    return !(*this == other);
-}
-
 bool valid_char(unsigned char c) { return c >= 0x20 && c <= 0xef; }
 
-void add_line(std::vector<TextBox> &lines, const WindowState &window_state, int ix) {
-    int i = static_cast<int>(lines.size());
-    lines.emplace_back(0, 0 + BOX_LINE_HEIGHT * i, BOX_SIZE - 2 * BOX_TEXT_MARGIN, BOX_LINE_HEIGHT, "", window_state);
-    lines.back().set_left_align(true);
-    lines.back().set_text_color(0xf0, 0xf0, 0xf0, 0xff);
-    for (int j = static_cast<int>(lines.size()) - 2; j >= ix; --j) {
-        lines[j + 1].set_text(lines[j].get_text());
-    }
-    lines[ix].set_text("");
-}
+Editbox::Editbox(int x, int y, const WindowState &window_state) : x(x), y(y), window_state(&window_state) {}
 
-std::string Editbox::extract_region(TextPosition start, TextPosition end) const {
-    if (start == end) {
-        return "";
-    }
-    if (start.row == end.row) {
-        return lines[start.row].get_text().substr(start.col,
-                                                  end.col - start.col);
-    } else {
-        std::stringstream res{};
-        res << lines[start.row].get_text().substr(start.col);
-        for (int row = start.row + 1; row < end.row; ++row) {
-            res << '\n' << lines[row].get_text();
-        }
-        res << '\n' << lines[end.row].get_text().substr(0, end.col);
-        return res.str();
-    }
-}
-
-Editbox::Editbox(int x, int y, const WindowState &window_state) : x(x), y(y) {
-    add_line(lines, window_state, 0);
-}
-
-void Editbox::delete_region(TextPosition start, TextPosition end) {
-    if (start >= end) {
-        return;
-    }
-    std::string first = lines[start.row].get_text();
-    first.erase(start.col);
-    std::string last = lines[end.row].get_text();
-    last.erase(0, end.col);
-    lines[start.row].set_text(first + last);
-    for (int ix = 0; ix < lines.size() - (end.row + 1); ++ix) {
-        lines[start.row + ix + 1].set_text(lines[end.row + 1 + ix].get_text());
-    }
-    int rem_lines = static_cast<int>(lines.size()) - (end.row - start.row);
-    lines.resize(rem_lines);
-}
-
-bool Editbox::insert_region(const std::string &str, const WindowState& window_state, TextPosition start, TextPosition end, EditAction& action) {
-    int new_rows = static_cast<int>(std::count(str.begin(), str.end(), '\n'));
-    if (lines.size() + new_rows - (end.row - start.row) > MAX_LINES) {
-        // Would add too many lines
-        return false;
-    }
-    if (new_rows == 0) {
-        std::string old = extract_region(start, end);
-        bool split_delete = false;
-        if (start.row == end.row) {
-            if (str.size() + start.col + line_size(end.row) - end.col > MAX_LINE_WIDTH) {
-                // The first line would become too long
-                return false;
-            }
-            delete_region(start, end);
-        } else if (str.size() + start.col > MAX_LINE_WIDTH) {
-            // The first line would become too long
-            return false;
-        }  else if (str.size() + start.col + line_size(end.row) - end.col > MAX_LINE_WIDTH) {
-            delete_region(start, {start.row, line_size(start.row)});
-            delete_region({start.row + 1, 0}, end);
-            split_delete = true;
-        } else {
-            delete_region(start, end);
-        }
-        TextPosition start_pos = start;
-        std::string s = lines[start.row].get_text();
-        s.insert(start.col, str);
-        lines[start.row].set_text(s);
-        start.col += static_cast<int>(str.size());
-        if (split_delete) {
-            action = {start_pos, {start.row + 1, 0}, old};
-        } else {
-            action = {start_pos, start, old};
-        }
-    } else {
-        size_t ix = str.find('\n');
-        std::string first = str.substr(0, ix);
-        if (start.col + first.size() > MAX_LINE_WIDTH) {
-            return false;
-        }
-        size_t last_ix = str.rfind('\n');
-        std::string last = str.substr(last_ix + 1);
-        if (line_size(end.row) - end.col + last.size() > MAX_LINE_WIDTH) {
-            return false;
-        }
-        std::string rem = str.substr(ix + 1, last_ix - ix);
-        size_t offset = 0;
-        for (int i = 0; i < new_rows - 1; ++i) {
-            size_t pos = rem.find('\n', offset);
-            if (pos - offset > MAX_LINE_WIDTH) {
-                return false;
-            }
-            offset = pos + 1;
-        }
-        std::string old = extract_region(start, end);
-        delete_region(start, end);
-        std::string s = lines[start.row].get_text();
-        std::string end_str = s.substr(start.col);
-        s.erase(start.col);
-        lines[start.row].set_text(s + first);
-        offset = 0;
-        for (int i = 1; i <= new_rows; ++i) {
-            add_line(lines, window_state, start.row + i);
-        }
-        for (int i = 1; i < new_rows; ++i) {
-            size_t pos = rem.find('\n', offset);
-            lines[start.row + i].set_text(rem.substr(offset, pos - offset));
-            offset = pos + 1;
-        }
-        TextPosition start_pos = start;
-        lines[start.row + new_rows].set_text(last + end_str);
-        start.row += new_rows;
-        start.col = static_cast<int>(last.size());
-        action = {start_pos, start, old};
-    }
-    return true;
-}
-
-bool Editbox::insert_str(const std::string &str, const WindowState& window_state, EditType edit) {
-    EditAction action;
-    if (!insert_region(str, window_state, selection_start, selection_end, action)) {
-        return false;
-    }
-    cursor_pos = action.end;
-    clear_selection();
-    reset_cursor_animation();
-
-    if (edit != NONE && edit == edit_action) {
-        action.chain = true;
-    }
-    if (edit == UNDO) {
-        redo_stack.push(action);
-    } else if (edit == REDO) {
-        undo_stack.push(action);
-    } else if (edit != edit_action || edit == NONE) {
-        redo_stack.clear();
-        undo_stack.push(action);
-    } else {
-        redo_stack.clear();
-        if (undo_stack.size() == 0) {
-            undo_stack.push(action);
-        } else {
-            if (undo_stack.top().end == action.start) {
-                undo_stack.top().end = action.end;
-                undo_stack.top().text += action.text;
-            } else {
-                undo_stack.push(action);
-            }
-        }
-    }
-    edit_action = edit;
-    return true;
-}
-
-void Editbox::clear_selection() {
-    selection_start = cursor_pos;
-    selection_end = cursor_pos;
-    selection_base = cursor_pos;
-}
 
 TextPosition Editbox::find_pos(int mouse_x, int mouse_y) const {
     int row = (mouse_y - (y + BOX_TEXT_MARGIN)) / BOX_LINE_HEIGHT;
+    const std::vector<std::string>& text = lines.get_lines();
     if (row < 0) {
         row = 0;
-    } else if (row >= lines.size()) {
-        row = static_cast<int>(lines.size() - 1);
+    } else if (row >= text.size()) {
+        row = static_cast<int>(text.size() - 1);
     }
     int col = (mouse_x - (x + BOX_TEXT_MARGIN)) / BOX_CHAR_WIDTH;
     if (col < 0) {
         col = 0;
-    } else if (col > line_size(row)) {
-        col = line_size(row);
+    } else if (col > text[row].size()) {
+        col = static_cast<int>(text[row].size());
     }
     return {row, col};
 }
 
-void Editbox::update_selection(TextPosition pos) {
-    if (!(pos >= selection_base)) {
-        selection_start = pos;
-        selection_end = selection_base;
-    } else {
-        selection_start = selection_base;
-        selection_end = pos;
-    }
-    cursor_pos = pos;
-}
 
-void Editbox::move_cursor(TextPosition pos, bool select) {
-    if (select) {
-        update_selection(pos);
-    } else {
-        cursor_pos = pos;
-        clear_selection();
-    }
-    edit_action = NONE;
-    reset_cursor_animation();
-}
-
-void Editbox::input_char(char c, const WindowState& window_state) {
+void Editbox::input_char(char c) {
     if (!box_selected) {
         return;
     }
 
     if (valid_char(c)) {
-        EditAction action;
-        insert_str(std::string(1, c), window_state, WRITE);
+        lines.insert_str(std::string(1, c), EditType::WRITE);
     }
 }
 
-void Editbox::tick(Uint64 passed, bool mouse_down, const WindowState& window_state) {
+void Editbox::tick(Uint64 passed, bool mouse_down) {
     if (mouse_down && box_selected) {
-        TextPosition pos = find_pos(window_state.mouseX, window_state.mouseY);
-        update_selection(pos);
+        TextPosition pos = find_pos(window_state->mouseX, window_state->mouseY);
+        lines.move_cursor(pos, true);
     }
 
     ticks_remaining -= static_cast<Sint64>(passed);
@@ -259,19 +49,13 @@ void Editbox::tick(Uint64 passed, bool mouse_down, const WindowState& window_sta
     }
 }
 
-void Editbox::select(const WindowState& window_state) {
-    TextPosition pos = find_pos(window_state.mouseX, window_state.mouseY);
+void Editbox::select() {
+    TextPosition pos = find_pos(window_state->mouseX, window_state->mouseY);
     box_selected = true;
-    bool shift_pressed = window_state.keyboard_state[SDL_SCANCODE_RSHIFT] ||
-                         window_state.keyboard_state[SDL_SCANCODE_LSHIFT];
+    bool shift_pressed = window_state->keyboard_state[SDL_SCANCODE_RSHIFT] ||
+                         window_state->keyboard_state[SDL_SCANCODE_LSHIFT];
 
-    if (shift_pressed) {
-        update_selection(pos);
-    } else {
-        cursor_pos = pos;
-        clear_selection();
-    }
-    edit_action = NONE;
+    lines.move_cursor(pos, shift_pressed);
 
     show_cursor = true;
     ticks_remaining = 800;
@@ -280,46 +64,12 @@ void Editbox::select(const WindowState& window_state) {
 void Editbox::unselect() {
     box_selected = false;
     show_cursor = false;
-    edit_action = NONE;
+    lines.clear_action();
 }
 
 void Editbox::reset_cursor_animation() {
     ticks_remaining = 500;
     show_cursor = true;
-}
-
-int Editbox::line_size(int row) const {
-    return static_cast<int>(lines[row].get_text().size());
-}
-
-bool Editbox::move_left(TextPosition &pos, int off) const {
-    TextPosition old = pos;
-    while (pos.col - off < 0) {
-        if (pos.row == 0) {
-            pos = old;
-            return false;
-        }
-        off -= 1 + pos.col;
-        --pos.row;
-        pos.col = line_size(pos.row);
-    }
-    pos.col -= off;
-    return true;
-}
-
-bool Editbox::move_right(TextPosition &pos, int off) const {
-    TextPosition old = pos;
-    while (pos.col + off > line_size(pos.row)) {
-        if (pos.row == lines.size() - 1) {
-            pos = old;
-            return false;
-        }
-        off -= 1 + line_size(pos.row) - pos.col;
-        ++pos.row;
-        pos.col = 0;
-    }
-    pos.col += off;
-    return true;
 }
 
 void validate_string(std::string& s) {
@@ -349,149 +99,111 @@ void validate_string(std::string& s) {
     }
 }
 
-void Editbox::handle_keypress(SDL_Keycode key, const WindowState &window_state) {
-    bool shift_pressed = window_state.keyboard_state[SDL_SCANCODE_RSHIFT] ||
-                         window_state.keyboard_state[SDL_SCANCODE_LSHIFT];
-    bool ctrl_pressed = window_state.keyboard_state[SDL_SCANCODE_LCTRL] ||
-                        window_state.keyboard_state[SDL_SCANCODE_RCTRL];
+void Editbox::handle_keypress(SDL_Keycode key) {
+    bool shift_pressed = window_state->keyboard_state[SDL_SCANCODE_RSHIFT] ||
+                         window_state->keyboard_state[SDL_SCANCODE_LSHIFT];
+    bool ctrl_pressed = window_state->keyboard_state[SDL_SCANCODE_LCTRL] ||
+                        window_state->keyboard_state[SDL_SCANCODE_RCTRL];
 
+    TextPosition cursor = lines.get_cursor_pos();
     if (key == SDLK_HOME) {
-        move_cursor({cursor_pos.row, 0}, shift_pressed);
+        lines.move_cursor({cursor.row, 0}, shift_pressed);
     } else if (key == SDLK_END) {
-        move_cursor({cursor_pos.row, line_size(cursor_pos.row)}, shift_pressed);
+        lines.move_cursor({cursor.row, lines.line_size(cursor.row)}, shift_pressed);
     } else if (key == SDLK_TAB || key == SDLK_KP_TAB) {
-        insert_str(std::string(SPACES_PER_TAB, ' '), window_state);
+        lines.insert_str(std::string(SPACES_PER_TAB, ' '));
     } else if (key == 'a' && ctrl_pressed) {
-        selection_start = selection_base = {0, 0};
-        selection_end = {static_cast<int>(lines.size() - 1),
-                         line_size(static_cast<int>(lines.size() - 1))};
-        cursor_pos = selection_end;
-        reset_cursor_animation();
+        lines.set_selection({0, 0},
+                            {static_cast<int>(lines.line_count() - 1),
+                             lines.line_size(lines.line_count() - 1)},
+                            true);
     } else if ((key == 'z' && ctrl_pressed && shift_pressed) || key == 'y' && ctrl_pressed) {
-        if (selection_start != selection_end) {
-            clear_selection();
-        } else if (redo_stack.size() > 0) {
-            EditAction action;
-            do {
-                action = redo_stack.pop();
-                selection_start = action.start;
-                selection_end = action.end;
-                cursor_pos = selection_start;
-                insert_str(action.text, window_state, REDO);
-            } while (action.chain);
-            edit_action = NONE;
+        if (lines.has_selection()) {
+            lines.clear_selection();
+        } else {
+            lines.undo_action(true);
         }
     } else if (key == 'z' && ctrl_pressed) {
-        if (selection_start != selection_end) {
-            clear_selection();
-        } else if (undo_stack.size() > 0) {
-            EditAction action;
-            do {
-                action = undo_stack.pop();
-                selection_start = action.start;
-                selection_end = action.end;
-                cursor_pos = selection_start;
-                insert_str(action.text, window_state, UNDO);
-            } while (action.chain);
-            edit_action = NONE;
+        if (lines.has_selection()) {
+            lines.clear_selection();
+        } else {
+            lines.undo_action(false);
         }
     } else if (key == 'v' && ctrl_pressed) {
         char* clip = SDL_GetClipboardText();
         std::string s{clip};
         validate_string(s);
         SDL_free(clip);
-        insert_str(s, window_state);
+        lines.insert_str(s);
     } else if ((key == 'c' || key == 'x') && ctrl_pressed) {
-        if (selection_start == selection_end) {
+        if (!lines.has_selection()) {
             return;
         }
-        std::string s = extract_region(selection_start, selection_end);
+        std::string s = lines.extract_selection();
         LOG_DEBUG("Copying '%s' to clipboard", s.c_str());
         SDL_SetClipboardText(s.c_str());
         if (key == 'x') {
-            insert_str("", window_state);
+            lines.insert_str("");
         }
     } else if (key == SDLK_DOWN) {
-        if (!shift_pressed && selection_start != selection_end) {
-            clear_selection();
+        if (!shift_pressed && lines.has_selection()) {
+            lines.clear_selection();
         }
-        if (cursor_pos.row == lines.size() - 1) {
-            int size = line_size(cursor_pos.row);
-            cursor_pos.col = size;
-            move_cursor(cursor_pos, shift_pressed);
-        } else {
-            ++cursor_pos.row;
-            int size = line_size(cursor_pos.row);
-            if (cursor_pos.col > size) {
-                cursor_pos.col = size;
-            }
-            move_cursor(cursor_pos, shift_pressed);
-        }
+        lines.move_cursor({cursor.row + 1, cursor.col}, shift_pressed);
     } else if (key == SDLK_UP) {
-        if (!shift_pressed && selection_start != selection_end) {
-            clear_selection();
+        if (!shift_pressed && lines.has_selection()) {
+            lines.clear_selection();
         }
-        if (cursor_pos.row == 0) {
-            move_cursor({0, 0}, shift_pressed);
-        } else {
-            --cursor_pos.row;
-            int size = line_size(cursor_pos.row);
-            if (cursor_pos.col > size) {
-                cursor_pos.col = size;
-            }
-            move_cursor(cursor_pos, shift_pressed);
-        }
+        lines.move_cursor({cursor.row - 1, cursor.col}, shift_pressed);
     } else if (key == SDLK_LEFT) {
-        if (!shift_pressed && selection_start != selection_end) {
-            cursor_pos = selection_start;
-            move_cursor(cursor_pos, false);
+        if (!shift_pressed && lines.has_selection()) {
+            lines.clear_selection();
         } else {
-            if (!move_left(cursor_pos, 1)) {
+            if (!lines.move_left(cursor, 1)) {
                 return;
             }
-            move_cursor(cursor_pos, shift_pressed);
+            lines.move_cursor(cursor, shift_pressed);
         }
     } else if (key == SDLK_RIGHT) {
-        if (!shift_pressed && selection_start != selection_end) {
-            cursor_pos = selection_end;
-            move_cursor(cursor_pos, false);
+        if (!shift_pressed && lines.has_selection()) {
+            lines.clear_selection();
         } else {
-            if (!move_right(cursor_pos, 1)) {
+            if (!lines.move_right(cursor, 1)) {
                 return;
             }
-            move_cursor(cursor_pos, shift_pressed);
+            lines.move_cursor(cursor, shift_pressed);
         }
     } else if (key == SDLK_DELETE) {
-        reset_cursor_animation();
-        if (selection_start == selection_end) {
-            if (!move_right(selection_end, 1)) {
+        if (!lines.has_selection()) {
+            if (!lines.move_right(cursor, 1)) {
                 return;
             }
+            lines.move_cursor(cursor, true);
         }
-        insert_str("", window_state, DELETE);
+        lines.insert_str("", EditType::DELETE);
     } else if (key == SDLK_BACKSPACE) {
-        reset_cursor_animation();
-        if (selection_start == selection_end) {
-            if (!move_left(selection_start, 1)) {
+        if (!lines.has_selection()) {
+            if (!lines.move_left(cursor, 1)) {
                 return;
             }
+            lines.move_cursor(cursor, true);
         }
-        insert_str("", window_state, BACKSPACE);
+        lines.insert_str("", EditType::BACKSPACE);
     } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
-        insert_str("\n", window_state);
+        lines.insert_str("\n");
     }
 }
 
-void Editbox::render(WindowState &window_state) {
+void Editbox::render() {
     SDL_SetRenderDrawColor(gRenderer, 0xf0, 0xf0, 0xf0, 0xff);
     SDL_Rect rect = {x, y, BOX_SIZE, BOX_SIZE};
     SDL_RenderDrawRect(gRenderer, &rect);
 
-    if (selection_start != selection_end) {
+    if (lines.has_selection()) {
         SDL_SetRenderDrawColor(gRenderer, 0x50, 0x50, 0x50, 0xff);
-        int start = selection_start.col;
-        for (int row = selection_start.row; row < selection_end.row; ++row) {
-            int size = line_size(row);
+        int start = lines.get_selection_start().col;
+        for (int row = lines.get_selection_start().row; row < lines.get_selection_end().row; ++row) {
+            int size = lines.line_size(row);
             SDL_Rect r = {x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * start,
                           y + BOX_LINE_HEIGHT * row + BOX_TEXT_MARGIN,
                           BOX_CHAR_WIDTH * (size + 1 - start),
@@ -499,19 +211,20 @@ void Editbox::render(WindowState &window_state) {
             SDL_RenderFillRect(gRenderer, &r);
             start = 0;
         }
-        int col = selection_end.col;
+        int col = lines.get_selection_end().col;
         SDL_Rect r = {x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * start,
-                      y + BOX_LINE_HEIGHT * selection_end.row + BOX_TEXT_MARGIN,
+                      y + BOX_LINE_HEIGHT * lines.get_selection_end().row + BOX_TEXT_MARGIN,
                       BOX_CHAR_WIDTH * (col - start),
                       BOX_LINE_HEIGHT};
         SDL_RenderFillRect(gRenderer, &r);
     }
 
-    for (auto& box: lines) {
-        box.render(x + BOX_TEXT_MARGIN, y + BOX_TEXT_MARGIN, window_state);
+    for (auto& box: boxes) {
+        box.render(x + BOX_TEXT_MARGIN, y + BOX_TEXT_MARGIN, *window_state);
     }
 
     if (show_cursor) {
+        TextPosition cursor_pos = lines.get_cursor_pos();
         SDL_SetRenderDrawColor(gRenderer, 0xf0, 0xf0, 0xf0, 0xff);
         SDL_RenderDrawLine(gRenderer, x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * cursor_pos.col,
                            y + BOX_LINE_HEIGHT  * cursor_pos.row + BOX_TEXT_MARGIN,
@@ -520,10 +233,35 @@ void Editbox::render(WindowState &window_state) {
     }
 }
 void Editbox::set_dpi_scale(double dpi) {
-    for (auto& line: lines) {
+    for (auto& line: boxes) {
         line.set_dpi_ratio(dpi);
     }
 }
 bool Editbox::is_pressed(int mouse_x, int mouse_y) const {
     return mouse_x > x && mouse_x < x + BOX_SIZE && mouse_y > y && mouse_y < y + BOX_SIZE;
+}
+void Editbox::change_callback(TextPosition start, TextPosition end,
+                              int removed) {
+    if (boxes.size() < lines.line_count()) {
+        for (int i = boxes.size(); i < lines.line_count(); ++i) {
+            boxes.emplace_back(0, 0 + BOX_LINE_HEIGHT * i, BOX_SIZE - 2 * BOX_TEXT_MARGIN, BOX_LINE_HEIGHT, "", *window_state);
+            boxes.back().set_left_align(true);
+            boxes.back().set_text_color(0xf0, 0xf0, 0xf0, 0xff);
+        }
+    } else if (boxes.size() > lines.line_count()) {
+        boxes.resize(lines.line_count());
+    }
+    for (int i = 0; i < lines.line_count(); ++i) {
+        if (lines.get_lines()[i] != boxes[i].get_text()) {
+            boxes[i].set_text(lines.get_lines()[i]);
+        }
+    }
+    LOG_INFO("Change!");
+    reset_cursor_animation();
+    //lines.emplace_back(0, 0 + BOX_LINE_HEIGHT * i, BOX_SIZE - 2 * BOX_TEXT_MARGIN, BOX_LINE_HEIGHT, "", window_state);
+}
+
+void change_callback(TextPosition start, TextPosition end, int removed, void* aux) {
+    static_cast<Editbox*>(aux)->change_callback(start, end, removed);
+
 }
