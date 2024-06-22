@@ -1,5 +1,6 @@
 #pragma once
 #include "editbox.h"
+#include "processor.h"
 #include <engine/game.h>
 #include <engine/ui.h>
 
@@ -29,7 +30,11 @@ private:
 
     bool mouse_down = false;
 
+    std::vector<TextBox> error_msgs {};
     Editbox box;
+
+    Processor processor {4};
+    ProcessorGui processor_gui{};
 
     double dpi_scale = 0.0;
 };

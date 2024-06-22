@@ -34,7 +34,11 @@ public:
 
     void unselect();
 
+    const std::vector<std::string>& get_text() const;
+
     void input_char(char c);
+
+    void set_text(std::string& text);
 private:
     friend void change_callback(TextPosition, TextPosition, int, void*);
     void change_callback(TextPosition start, TextPosition end, int removed);

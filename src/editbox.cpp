@@ -107,6 +107,13 @@ void validate_string(std::string& s) {
     }
 }
 
+void Editbox::set_text(std::string& text) {
+    validate_string(text);
+    lines.set_selection({0, 0}, {lines.line_count() - 1, lines.line_size(lines.line_count() - 1)}, true);
+    lines.insert_str(text);
+    lines.clear_undo_stack();
+}
+
 enum class CharGroup {
     REGULAR, SYMBOL, SPACE, NEWLINE
 };
@@ -362,4 +369,8 @@ void Editbox::change_callback(TextPosition start, TextPosition end,
 
 void change_callback(TextPosition start, TextPosition end, int removed, void* aux) {
     static_cast<Editbox*>(aux)->change_callback(start, end, removed);
+}
+
+const std::vector<std::string>& Editbox::get_text() const {
+    return lines.get_lines();
 }

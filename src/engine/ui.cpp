@@ -36,7 +36,7 @@ void TextBox::generate_texture() {
     }
 
     SDL_Surface *text_surface =
-        TTF_RenderUTF8_Blended(font, text.c_str(), color);
+        TTF_RenderUTF8_Blended_Wrapped(font, text.c_str(), color, 0);
     if (text_surface == nullptr) {
         throw image_load_exception(std::string(TTF_GetError()));
     }
@@ -110,7 +110,7 @@ void TextBox::set_dimensions(const int new_w, const int new_h) {
 }
 
 void TextBox::render(const int x_offset, const int y_offset,
-                     const WindowState &window_state) {
+                     const WindowState &window_state) const {
     if (text.empty()) {
         return;
     }
@@ -132,7 +132,7 @@ bool Button::is_pressed(int mouseX, int mouseY) const {
 void Button::set_hover(const bool new_hover) { hover = new_hover; }
 
 void Button::render(const int x_offset, const int y_offset,
-                    const WindowState &window_state) {
+                    const WindowState &window_state) const {
     SDL_Rect r = {x + x_offset, y + y_offset, w, h};
     if (background != nullptr) {
         if (hover) {

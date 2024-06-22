@@ -1,6 +1,7 @@
 #include "assembly.h"
 #include "engine/log.h"
 #include "config.h"
+#include "processor.h"
 
 
 GameState::GameState() : State() {}
@@ -61,6 +62,10 @@ void GameState::set_font_size() {
     TTF_SetFontSizeDPI(gFont, 20, hpdi, vdpi);
 
     box.set_dpi_scale(dpi_scale);
+    processor_gui.set_dpi(dpi_scale);
+    for (auto& msg: error_msgs) {
+        msg.set_dpi_ratio(dpi_scale);
+    }
 }
 
 void GameState::handle_size_change() {
@@ -86,14 +91,34 @@ void GameState::init(WindowState *window_state) {
     LOG_INFO("Logical size: %d, %d\n", window_state->screen_width, window_state->screen_width);
 
     box.~Editbox();
-    new (&box)Editbox{WIDTH / 2 - BOX_SIZE / 2, HEIGHT / 2 - BOX_SIZE / 2, *window_state };
+    new (&box)Editbox{BOX_X, BOX_Y, *window_state };
+
+    processor_gui.~ProcessorGui();
+    new (&processor_gui)ProcessorGui(&processor, BOX_X, BOX_Y, window_state);
 
     set_font_size();
+
+    SDL_RWops* file = SDL_RWFromFile("program.txt", "r");
+    if (file != nullptr) {
+        Sint64 size = SDL_RWsize(file);
+        char *data = new char[size];
+        if (SDL_RWread(file, data, 1, size) == size) {
+            std::string str{data, static_cast<std::size_t>(size)};
+            box.set_text(str);
+        }
+        delete[] data;
+        SDL_RWclose(file);
+    }
 }
 
 void GameState::render() {
     SDL_SetRenderDrawColor(gRenderer, 0x20, 0x20, 0x20, 0xff);
     SDL_RenderClear(gRenderer);
+
+    processor_gui.render();
+    for (auto& a: error_msgs) {
+        a.render(0, 0, *window_state);
+    }
 
     box.render();
 
@@ -105,6 +130,15 @@ void GameState::render() {
 
 void GameState::tick(const Uint64 delta, StateStatus &res) {
     if (should_exit) {
+        SDL_RWops* file = SDL_RWFromFile("program.txt", "w");
+        if (file != nullptr) {
+            const auto& lines = box.get_text();
+            for (const std::string& s : lines) {
+                SDL_RWwrite(file, s.c_str(), 1, s.size());
+                SDL_RWwrite(file, "\n", 1, 1);
+            }
+            SDL_RWclose(file);
+        }
         res.action = StateStatus::EXIT;
         return;
     }
@@ -119,6 +153,7 @@ void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {
 }
 
 void GameState::handle_down(const SDL_Keycode key, const Uint8 mouse) {
+    static bool has_progam = false;
     if (key == SDLK_ESCAPE) {
         should_exit = true;
     } else if (mouse == SDL_BUTTON_LEFT) {
@@ -126,9 +161,27 @@ void GameState::handle_down(const SDL_Keycode key, const Uint8 mouse) {
         if (box.is_pressed(window_state->mouseX, window_state->mouseY)) {
             SDL_StartTextInput();
             box.select();
+            error_msgs.clear();
+            has_progam = false;
         } else {
             box.unselect();
             SDL_StopTextInput();
+            error_msgs.clear();
+            const auto& text = box.get_text();
+            std::vector<ErrorMsg> errors;
+            if (has_progam) {
+                processor.clock_tick();
+            } else if (!processor.compile_program(text, errors)) {
+                has_progam = false;
+                for (const auto& error: errors) {
+                    error_msgs.emplace_back(BOX_TEXT_MARGIN, BOX_Y + BOX_TEXT_MARGIN + error.pos.row * BOX_LINE_HEIGHT,
+                                            8, BOX_LINE_HEIGHT, error.msg, *window_state);
+                    error_msgs.back().set_text_color(0xf0, 0x0, 0x0, 0xff);
+                    error_msgs.back().set_left_align(true);
+                }
+            } else {
+                has_progam = true;
+            }
         }
     } else {
         box.handle_keypress(key);

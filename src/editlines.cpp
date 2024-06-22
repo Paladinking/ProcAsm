@@ -256,6 +256,11 @@ void EditLines::set_selection(TextPosition start, TextPosition end, bool cursor_
     }
 }
 
+void EditLines::clear_undo_stack() {
+    undo_stack.clear();
+    redo_stack.clear();
+}
+
 bool EditLines::insert_str(const std::string &str, EditType edit) {
     EditAction action;
     if (!insert_region(str, selection_start, selection_end, action)) {

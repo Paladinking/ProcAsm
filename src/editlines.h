@@ -80,6 +80,8 @@ public:
     int line_size(int row) const;
 
     char char_at_pos(TextPosition pos) const;
+
+    void clear_undo_stack();
 private:
     void delete_region(TextPosition start, TextPosition end);
 

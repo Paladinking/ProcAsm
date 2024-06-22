@@ -62,7 +62,7 @@ public:
      * Renders the textbox.
      */
     virtual void render(int x_offset, int y_offset,
-                        const WindowState &window_state);
+                        const WindowState &window_state) const;
 
     /**
      * Initializes the button class, loading the font used for the button text.
@@ -144,7 +144,7 @@ public:
      * Renders the button.
      */
     void render(int x_offset, int y_offset,
-                const WindowState &window_state) override;
+                const WindowState &window_state) const override;
 
 private:
     bool hover = false;
