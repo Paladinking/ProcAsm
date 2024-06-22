@@ -1,7 +1,6 @@
 #include "editbox.h"
 #include "config.h"
 #include "engine/log.h"
-#include <sstream>
 
 bool valid_char(unsigned char c) { return c >= 0x20 && c <= 0xef; }
 
@@ -32,6 +31,14 @@ void Editbox::input_char(char c) {
     }
 
     if (valid_char(c)) {
+        reset_cursor_animation();
+        if (insert_mode && !lines.has_selection()) {
+            TextPosition pos = lines.get_cursor_pos();
+            if (pos.col < lines.line_size(pos.row)) {
+                pos.col += 1;
+                lines.move_cursor(pos, true);
+            }
+        }
         lines.insert_str(std::string(1, c), EditType::WRITE);
     }
 }
@@ -56,6 +63,7 @@ void Editbox::select() {
                          window_state->keyboard_state[SDL_SCANCODE_LSHIFT];
 
     lines.move_cursor(pos, shift_pressed);
+    max_col = lines.get_cursor_pos().col;
 
     show_cursor = true;
     ticks_remaining = 800;
@@ -99,43 +107,84 @@ void validate_string(std::string& s) {
     }
 }
 
+enum class CharGroup {
+    REGULAR, SYMBOL, SPACE, NEWLINE
+};
+
+CharGroup get_char_group(char c) {
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+        return CharGroup::REGULAR;
+    }
+    if (c == ' ' || c == '\t') {
+        return CharGroup::SPACE;
+    }
+    if (c == '\n') {
+        return CharGroup::NEWLINE;
+    }
+    return CharGroup::SYMBOL;
+}
+
 void Editbox::handle_keypress(SDL_Keycode key) {
+    if (!box_selected) {
+        return;
+    }
     bool shift_pressed = window_state->keyboard_state[SDL_SCANCODE_RSHIFT] ||
                          window_state->keyboard_state[SDL_SCANCODE_LSHIFT];
     bool ctrl_pressed = window_state->keyboard_state[SDL_SCANCODE_LCTRL] ||
                         window_state->keyboard_state[SDL_SCANCODE_RCTRL];
 
     TextPosition cursor = lines.get_cursor_pos();
-    if (key == SDLK_HOME) {
-        lines.move_cursor({cursor.row, 0}, shift_pressed);
+    if (key == SDLK_INSERT) {
+        insert_mode = !insert_mode;
+        LOG_DEBUG("Insert mode: %d", insert_mode);
+    } else if (key == SDLK_HOME) {
+        reset_cursor_animation();
+        if (ctrl_pressed) {
+            lines.move_cursor({0, 0}, shift_pressed);
+        } else {
+            lines.move_cursor({cursor.row, 0}, shift_pressed);
+        }
+        max_col = lines.get_cursor_pos().col;
     } else if (key == SDLK_END) {
-        lines.move_cursor({cursor.row, lines.line_size(cursor.row)}, shift_pressed);
+        reset_cursor_animation();
+        if (ctrl_pressed) {
+            lines.move_cursor({lines.line_count() - 1, lines.line_size(lines.line_count() - 1)}, shift_pressed);
+        } else {
+            lines.move_cursor({cursor.row, lines.line_size(cursor.row)}, shift_pressed);
+        }
+        max_col = lines.get_cursor_pos().col;
     } else if (key == SDLK_TAB || key == SDLK_KP_TAB) {
+        reset_cursor_animation();
         lines.insert_str(std::string(SPACES_PER_TAB, ' '));
     } else if (key == 'a' && ctrl_pressed) {
+        reset_cursor_animation();
         lines.set_selection({0, 0},
                             {static_cast<int>(lines.line_count() - 1),
                              lines.line_size(lines.line_count() - 1)},
                             true);
     } else if ((key == 'z' && ctrl_pressed && shift_pressed) || key == 'y' && ctrl_pressed) {
+        reset_cursor_animation();
         if (lines.has_selection()) {
             lines.clear_selection();
         } else {
             lines.undo_action(true);
         }
     } else if (key == 'z' && ctrl_pressed) {
+        reset_cursor_animation();
         if (lines.has_selection()) {
             lines.clear_selection();
         } else {
             lines.undo_action(false);
         }
     } else if (key == 'v' && ctrl_pressed) {
+        reset_cursor_animation();
         char* clip = SDL_GetClipboardText();
         std::string s{clip};
         validate_string(s);
         SDL_free(clip);
         lines.insert_str(s);
     } else if ((key == 'c' || key == 'x') && ctrl_pressed) {
+        reset_cursor_animation();
         if (!lines.has_selection()) {
             return;
         }
@@ -145,35 +194,72 @@ void Editbox::handle_keypress(SDL_Keycode key) {
         if (key == 'x') {
             lines.insert_str("");
         }
-    } else if (key == SDLK_DOWN) {
+    } else if (key == SDLK_DOWN && !ctrl_pressed) {
+        reset_cursor_animation();
         if (!shift_pressed && lines.has_selection()) {
             lines.clear_selection();
         }
-        lines.move_cursor({cursor.row + 1, cursor.col}, shift_pressed);
-    } else if (key == SDLK_UP) {
+        lines.move_cursor({cursor.row + 1, max_col}, shift_pressed);
+        if (lines.get_cursor_pos().col > max_col || cursor.row == lines.line_count() - 1) {
+            max_col = lines.get_cursor_pos().col;
+        }
+    } else if (key == SDLK_UP && !ctrl_pressed) {
+        reset_cursor_animation();
         if (!shift_pressed && lines.has_selection()) {
             lines.clear_selection();
         }
-        lines.move_cursor({cursor.row - 1, cursor.col}, shift_pressed);
+        lines.move_cursor({cursor.row - 1, max_col}, shift_pressed);
+        if (lines.get_cursor_pos().col > max_col || cursor.row == 0) {
+            max_col = lines.get_cursor_pos().col;
+        }
     } else if (key == SDLK_LEFT) {
-        if (!shift_pressed && lines.has_selection()) {
-            lines.clear_selection();
-        } else {
-            if (!lines.move_left(cursor, 1)) {
-                return;
-            }
-            lines.move_cursor(cursor, shift_pressed);
+        reset_cursor_animation();
+        if (!shift_pressed && !ctrl_pressed && lines.has_selection()) {
+            lines.move_cursor(lines.get_selection_start(), false);
+            return;
         }
+        if (!lines.move_left(cursor, 1)) {
+            return;
+        }
+        if (ctrl_pressed) {
+            CharGroup group = get_char_group(lines.char_at_pos(cursor));
+            bool seen_space = false;
+            do {
+                CharGroup new_group = get_char_group(lines.char_at_pos(cursor));
+                if (new_group == CharGroup::SPACE) {
+                    seen_space = true;
+                } else if (seen_space || new_group != group) {
+                    lines.move_right(cursor, 1);
+                    break;
+                }
+            } while (lines.move_left(cursor, 1));
+        }
+        lines.move_cursor(cursor, shift_pressed);
+        max_col = lines.get_cursor_pos().col;
     } else if (key == SDLK_RIGHT) {
-        if (!shift_pressed && lines.has_selection()) {
-            lines.clear_selection();
-        } else {
-            if (!lines.move_right(cursor, 1)) {
-                return;
-            }
-            lines.move_cursor(cursor, shift_pressed);
+        reset_cursor_animation();
+        if (!shift_pressed && !ctrl_pressed && lines.has_selection()) {
+            lines.move_cursor(lines.get_selection_end(), false);
+            return;
         }
+        if (ctrl_pressed) {
+            CharGroup group = get_char_group(lines.char_at_pos(cursor));
+            bool seen_space = false;
+            while (lines.move_right(cursor, 1)) {
+                CharGroup new_group = get_char_group(lines.char_at_pos(cursor));
+                if (new_group == CharGroup::SPACE) {
+                    seen_space = true;
+                } else if (seen_space || new_group != group) {
+                    break;
+                }
+            } 
+        } else if (!lines.move_right(cursor, 1)) {
+            return;
+        }
+        lines.move_cursor(cursor, shift_pressed);
+        max_col = lines.get_cursor_pos().col;
     } else if (key == SDLK_DELETE) {
+        reset_cursor_animation();
         if (!lines.has_selection()) {
             if (!lines.move_right(cursor, 1)) {
                 return;
@@ -182,6 +268,7 @@ void Editbox::handle_keypress(SDL_Keycode key) {
         }
         lines.insert_str("", EditType::DELETE);
     } else if (key == SDLK_BACKSPACE) {
+        reset_cursor_animation();
         if (!lines.has_selection()) {
             if (!lines.move_left(cursor, 1)) {
                 return;
@@ -190,6 +277,7 @@ void Editbox::handle_keypress(SDL_Keycode key) {
         }
         lines.insert_str("", EditType::BACKSPACE);
     } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
+        reset_cursor_animation();
         lines.insert_str("\n");
     }
 }
@@ -226,10 +314,17 @@ void Editbox::render() {
     if (show_cursor) {
         TextPosition cursor_pos = lines.get_cursor_pos();
         SDL_SetRenderDrawColor(gRenderer, 0xf0, 0xf0, 0xf0, 0xff);
-        SDL_RenderDrawLine(gRenderer, x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * cursor_pos.col,
-                           y + BOX_LINE_HEIGHT  * cursor_pos.row + BOX_TEXT_MARGIN,
-                           x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * cursor_pos.col,
-                           y + BOX_LINE_HEIGHT * (cursor_pos.row + 1) + BOX_TEXT_MARGIN);
+        if (!insert_mode) {
+            SDL_RenderDrawLine(gRenderer, x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * cursor_pos.col,
+                               y + BOX_LINE_HEIGHT  * cursor_pos.row + BOX_TEXT_MARGIN,
+                               x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * cursor_pos.col,
+                               y + BOX_LINE_HEIGHT * (cursor_pos.row + 1) + BOX_TEXT_MARGIN);
+        } else {
+            SDL_RenderDrawLine(gRenderer, x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * cursor_pos.col,
+                               y + BOX_LINE_HEIGHT * (cursor_pos.row + 1) + BOX_TEXT_MARGIN,
+                               x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * (cursor_pos.col + 1),
+                               y + BOX_LINE_HEIGHT * (cursor_pos.row + 1) + BOX_TEXT_MARGIN);
+        }
     }
 }
 void Editbox::set_dpi_scale(double dpi) {
@@ -242,6 +337,13 @@ bool Editbox::is_pressed(int mouse_x, int mouse_y) const {
 }
 void Editbox::change_callback(TextPosition start, TextPosition end,
                               int removed) {
+    max_col = lines.get_cursor_pos().col;
+    if (boxes.size() == lines.line_count()) {
+        for (int i = start.row; i <= end.row; ++i) {
+            boxes[i].set_text(lines.get_lines()[i]);
+        }
+        return;
+    }
     if (boxes.size() < lines.line_count()) {
         for (int i = boxes.size(); i < lines.line_count(); ++i) {
             boxes.emplace_back(0, 0 + BOX_LINE_HEIGHT * i, BOX_SIZE - 2 * BOX_TEXT_MARGIN, BOX_LINE_HEIGHT, "", *window_state);
@@ -251,17 +353,13 @@ void Editbox::change_callback(TextPosition start, TextPosition end,
     } else if (boxes.size() > lines.line_count()) {
         boxes.resize(lines.line_count());
     }
-    for (int i = 0; i < lines.line_count(); ++i) {
+    for (int i = start.row; i < lines.line_count(); ++i) {
         if (lines.get_lines()[i] != boxes[i].get_text()) {
             boxes[i].set_text(lines.get_lines()[i]);
         }
     }
-    LOG_INFO("Change!");
-    reset_cursor_animation();
-    //lines.emplace_back(0, 0 + BOX_LINE_HEIGHT * i, BOX_SIZE - 2 * BOX_TEXT_MARGIN, BOX_LINE_HEIGHT, "", window_state);
 }
 
 void change_callback(TextPosition start, TextPosition end, int removed, void* aux) {
     static_cast<Editbox*>(aux)->change_callback(start, end, removed);
-
 }

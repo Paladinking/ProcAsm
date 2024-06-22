@@ -1,11 +1,6 @@
 #include "assembly.h"
 #include "engine/log.h"
 #include "config.h"
-#include <sstream>
-
-
-// TODO: Selection is weird when moving between lines
-
 
 
 GameState::GameState() : State() {}
@@ -124,7 +119,6 @@ void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {
 }
 
 void GameState::handle_down(const SDL_Keycode key, const Uint8 mouse) {
-    LOG_DEBUG("Down event");
     if (key == SDLK_ESCAPE) {
         should_exit = true;
     } else if (mouse == SDL_BUTTON_LEFT) {

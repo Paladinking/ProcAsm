@@ -4,7 +4,6 @@
 #include "config.h"
 #include "editlines.h"
 #include "engine/game.h"
-#include "engine/log.h"
 #include "engine/ui.h"
 #include <vector>
 
@@ -46,13 +45,16 @@ private:
 
     int x{}, y{};
 
-    bool box_selected = false;
+    int max_col {0};
+    bool insert_mode {false};
+
+    bool box_selected {false};
 
     EditLines lines {MAX_LINES, MAX_LINE_WIDTH, ::change_callback, this};
 
     std::vector<TextBox> boxes;
 
-    bool show_cursor = false;
+    bool show_cursor {false};
     Sint64 ticks_remaining = 0;
 
     const WindowState* window_state {nullptr};

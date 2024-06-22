@@ -341,6 +341,13 @@ int EditLines::line_count() const {
     return static_cast<int>(lines.size());
 }
 
+char EditLines::char_at_pos(TextPosition pos) const {
+    if (pos.col == line_size(pos.row)) {
+        return '\n';
+    }
+    return lines[pos.row].at(pos.col);
+}
+
 
 #ifdef EDITLINE_TESTS
 #include <iostream>

@@ -78,6 +78,8 @@ public:
     int line_count() const;
 
     int line_size(int row) const;
+
+    char char_at_pos(TextPosition pos) const;
 private:
     void delete_region(TextPosition start, TextPosition end);
 
