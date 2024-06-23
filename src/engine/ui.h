@@ -12,6 +12,8 @@ enum class Alignment {
     LEFT, CENTRE, RIGHT
 };
 
+class Dropdown;
+
 class TextBox {
 public:
     TextBox() = default;
@@ -76,6 +78,8 @@ public:
     void set_dpi_ratio(double dpi);
 
 protected:
+    friend class Dropdown;
+
     int x{}, y{}, w{}, h{};
 
     int font_size{};
@@ -123,16 +127,6 @@ public:
            const std::string &text, const int font_size,
            const WindowState &window_state)
         : TextBox(x, y, w, h, text, font_size, window_state){};
-    Button(const int x, const int y, const int w, const int h,
-           const std::string &text, const int font_size,
-           const std::shared_ptr<Texture> &background,
-           const WindowState &window_state)
-        : TextBox(x, y, w, h, text, font_size, window_state),
-          background(background){};
-    Button(const int x, const int y, const int w, const int h,
-           const std::string &text, const std::shared_ptr<Texture> &background,
-           const WindowState &window_state)
-        : TextBox(x, y, w, h, text, window_state), background(background){};
 
     /**
      * Returns true if the button contains the point (mouseX, mousey).
@@ -143,6 +137,11 @@ public:
      * Sets the hover state of this button.
      */
     void set_hover(bool hover);
+
+    /**
+     * Hides or shows the border of this button.
+     */
+    void set_border(bool border);
 
     /**
      * Handles press logic on a mouse event. Returns true when pressed.
@@ -156,10 +155,39 @@ public:
                 const WindowState &window_state) const override;
 
 private:
+    bool border = true;
     bool hover = false;
     bool down = false;
+};
 
-    std::shared_ptr<Texture> background;
+class Dropdown {
+public:
+    Dropdown() = default;
+
+    Dropdown(int x, int y, int w, int h, const std::string& text, const std::vector<std::string>& choices, const WindowState& window_state);
+
+    void clear_choice();
+
+    void render(int x_offset, int y_offset, const WindowState& window_state) const;
+
+    int handle_press(int mouseX, int mouseY, bool down);
+
+    void set_text_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+
+    void set_dpi_ratio(double dpi);
+
+    void set_choices(const std::vector<std::string>& choices, const WindowState& window_state);
+
+private:
+    bool show_list = false;
+
+    int max_w, max_h;
+
+    std::string default_value;
+    
+    Button base;
+
+    std::vector<Button> choices {};
 };
 
 class Menu : public State {

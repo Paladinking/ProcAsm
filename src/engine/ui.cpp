@@ -1,5 +1,6 @@
 #include "ui.h"
 #include <utility>
+#include "engine/log.h"
 
 TTF_Font *TextBox::font;
 
@@ -135,6 +136,8 @@ bool Button::is_pressed(int mouseX, int mouseY) const {
 
 void Button::set_hover(const bool new_hover) { hover = new_hover; }
 
+void Button::set_border(const bool new_border) { border = new_border; }
+
 bool Button::handle_press(int mouseX, int mouseY, bool press) {
     if (!is_pressed(mouseX, mouseY)) {
         down = false;
@@ -152,32 +155,122 @@ bool Button::handle_press(int mouseX, int mouseY, bool press) {
 void Button::render(const int x_offset, const int y_offset,
                     const WindowState &window_state) const {
     SDL_Rect r = {x + x_offset, y + y_offset, w, h};
-    if (background != nullptr) {
-        if (hover) {
-            background->set_color_mod(200, 200, 200);
-        } else {
-            background->set_color_mod(255, 255, 255);
-        }
-        background->set_dimensions(r.w, r.h);
-        background->render_corner(r.x, r.y);
-    } else {
+    if (border) {
         SDL_SetRenderDrawColor(gRenderer, 0xf0, 0xf0, 0xf0, 0xff);
         SDL_RenderFillRect(gRenderer, &r);
         r.x += 2;
         r.y += 2;
         r.w -= 4;
         r.h -= 4;
-        if (down) {
-            SDL_SetRenderDrawColor(gRenderer, 50, 50, 50, 0xFF);
-        } else if (hover) {
-            SDL_SetRenderDrawColor(gRenderer, 80, 80, 80, 0xFF);
-        } else {
-            SDL_SetRenderDrawColor(gRenderer, 30, 30, 30, 0xFF);
-        }
-        SDL_RenderFillRect(gRenderer, &r);
     }
+    if (down) {
+        SDL_SetRenderDrawColor(gRenderer, 50, 50, 50, 0xFF);
+    } else if (hover) {
+        SDL_SetRenderDrawColor(gRenderer, 80, 80, 80, 0xFF);
+    } else {
+        SDL_SetRenderDrawColor(gRenderer, 30, 30, 30, 0xFF);
+    }
+    SDL_RenderFillRect(gRenderer, &r);
 
     TextBox::render(x_offset, y_offset, window_state);
+}
+
+Dropdown::Dropdown(int x, int y, int w, int h, const std::string& text, const std::vector<std::string>& choices, const WindowState& window_state) :
+    base(x, y, w, h, text, window_state), default_value(text) {
+    set_choices(choices, window_state);
+}
+
+void Dropdown::render(int x_offset, int y_offset, const WindowState& window_state) const {
+    const_cast<Button*>(&base)->set_hover(base.is_pressed(window_state.mouseX - x_offset, window_state.mouseY - y_offset));
+    base.render(x_offset, y_offset, window_state);
+    float x_base = base.x + x_offset + base.w - 20.0f;
+    float y_base = base.y + y_offset + base.h / 2.0f - 4;
+    if (show_list) {
+        for (auto & btn: choices) {
+            const_cast<Button*>(&btn)->set_hover(btn.is_pressed(window_state.mouseX - x_offset, window_state.mouseY - y_offset));
+            btn.render(x_offset, y_offset, window_state);
+        }
+        SDL_Rect r = {x_offset + base.x, y_offset + base.y + base.h, max_w + 8, static_cast<int>(choices.size()) * (max_h + 16)};
+        SDL_SetRenderDrawColor(gRenderer, 0xf0, 0xf0, 0xf0, 0xff);
+        SDL_RenderDrawRect(gRenderer, &r);
+        SDL_Vertex verticies[3] = {
+            {{x_base, y_base + 10}, {0xf0, 0xf0, 0xf0, 0xff}, {0.0f, 0.0f}},
+            {{x_base + 10, y_base + 10}, {0xf0, 0xf0, 0xf0, 0xff}, {0.0f, 0.0f}},
+            {{x_base + 5, y_base}, {0xf0, 0xf0, 0xf0, 0xff}, {0.0f, 0.0f}}
+        };
+        SDL_RenderGeometry(gRenderer, nullptr, verticies, 3, nullptr, 0);
+    } else {
+        SDL_Vertex verticies[3] = {
+            {{x_base, y_base}, {0xf0, 0xf0, 0xf0, 0xff}, {0.0f, 0.0f}},
+            {{x_base + 10, y_base}, {0xf0, 0xf0, 0xf0, 0xff}, {0.0f, 0.0f}},
+            {{x_base + 5, y_base + 10}, {0xf0, 0xf0, 0xf0, 0xff}, {0.0f, 0.0f}}
+        };
+        SDL_RenderGeometry(gRenderer, nullptr, verticies, 3, nullptr, 0);
+    }
+}
+
+void Dropdown::set_choices(const std::vector<std::string>& choices, const WindowState& window_state) {
+    this->choices.clear();
+    this->clear_choice();
+    max_w = base.w - 8, max_h = 0;
+    for (int i = 0; i < choices.size(); ++i) {
+        const std::string str = " " + choices[i];
+        int tw, th;
+        TTF_SizeUTF8(gFont, str.c_str(), &tw, &th);
+        if (tw > max_w) {
+            max_w = tw;
+        }
+        if (th > max_h) {
+            max_h = th;
+        }
+    }
+    for (int i = 0; i < choices.size(); ++i) {
+        const std::string& str = choices[i];
+        this->choices.emplace_back(base.x, base.y + base.h + (max_h + 16) * i,
+                                   max_w + 8, max_h + 16, " " + choices[i], window_state);
+        this->choices.back().set_align(Alignment::LEFT);
+        this->choices.back().set_border(false);
+    }
+}
+
+void Dropdown::set_dpi_ratio(double dpi) {
+    base.set_dpi_ratio(dpi);
+    for (auto& btn: choices) {
+        btn.set_dpi_ratio(dpi);
+    }
+}
+
+int Dropdown::handle_press(int mouseX, int mouseY, bool press) {
+    if (base.handle_press(mouseX, mouseY, press)) {
+        show_list = !show_list;
+    }
+    if (show_list) {
+        int pressed = -1;
+        for (int i = 0; i < choices.size(); ++i) {
+            auto& btn = choices[i];
+            if (btn.handle_press(mouseX, mouseY, press)) {
+                pressed = i;
+                show_list = false;
+            }
+        }
+        if (pressed != -1) {
+            base.set_text(choices[pressed].get_text().substr(1));
+        }
+        return pressed;
+    }
+    return -1;
+}
+
+void Dropdown::clear_choice() {
+    base.set_text(default_value);
+}
+
+void Dropdown::set_text_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    base.set_text_color(r, g, b, a);
+
+    for (auto& btn: choices) {
+        btn.set_text_color(r, g, b, a);
+    }
 }
 
 Menu::Menu() : State() {

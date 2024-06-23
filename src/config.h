@@ -4,6 +4,8 @@
 // Milliseconds per clock cycle.
 constexpr int TICK_DELAY = 2;
 
+#define TEXT_COLOR 0xf0, 0xf0, 0xf0, 0xff
+
 constexpr int WIDTH = 1920, HEIGHT = 1080;
 
 constexpr int MAX_LINE_WIDTH = 24;

@@ -2,6 +2,7 @@
 #include "editbox.h"
 #include "problem.h"
 #include "processor.h"
+#include "processor_gui.h"
 #include <engine/game.h>
 #include <engine/ui.h>
 
@@ -35,7 +36,7 @@ private:
 
     Processor processor {4};
     ProcessorGui processor_gui{};
-    ByteProblem problem{};
+    ByteProblem problem {};
 
     Uint64 ticks_passed = 0;
 

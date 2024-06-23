@@ -1,14 +1,16 @@
 #ifndef PROC_ASM_PROCESSOR_H
 #define PROC_ASM_PROCESSOR_H
 #include "instruction.h"
-#include "problem.h"
 #include "compiler.h"
 #include "engine/ui.h"
 #include <vector>
 #include <functional>
 #include "ports.h"
 
+#ifndef PROC_GUI_HEAD
+#define PROC_GUI_HEAD
 class ProcessorGui;
+#endif
 
 enum class ProcessorChange {
     REGISTER, IN_PORT, OUT_PORT, TICKS, RUNNING
@@ -29,6 +31,10 @@ public:
     bool is_running() const noexcept;
 
     void invalidate();
+
+    std::vector<InPort*> get_inputs();
+
+    std::vector<OutPort*> get_outputs();
 private:
     friend class ProcessorGui;
 
@@ -49,39 +55,5 @@ private:
     std::function<void(ProcessorChange, uint32_t)> change_callback;
 };
 
-class ProcessorGui {
-public:
-    ProcessorGui();
-
-    ProcessorGui(Processor* ptr, int x, int y, ByteProblem* problem, WindowState* window_state);
-
-    void render() const;
-
-    void set_dpi(double dpi_scale);
-
-    void mouse_change(bool press);
-
-private:
-    void change_callback(ProcessorChange, uint32_t reg);
-
-    Processor* processor {nullptr};
-    ByteProblem* problem {nullptr};
-    WindowState* window_state {nullptr};
-
-    int x {};
-    int y {};
-
-    std::vector<bool> register_state {};
-    std::vector<TextBox> registers {};
-
-    std::vector<TextBox> in_ports {};
-    std::vector<TextBox> out_ports {};
-
-    TextBox flags {};
-    TextBox ticks {};
-
-    Button step {};
-    Button run {};
-};
 
 #endif

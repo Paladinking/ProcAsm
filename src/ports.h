@@ -3,26 +3,32 @@
 #include <string>
 #include <type_traits>
 
-template <class I>
-class InBytePort {
+class InPort {
 public:
-    virtual I get_data() const noexcept = 0;
-
     virtual void pop_data() noexcept = 0;
 
     virtual bool has_data() const noexcept = 0;
 
     virtual void flush_input() noexcept = 0;
-    
+};
+
+class OutPort {
+public:
+    virtual bool has_space() const noexcept = 0;
+};
+
+template <class I>
+class InBytePort : public InPort {
+public:
+    virtual I get_data() const noexcept = 0;
+
     static_assert(std::is_integral_v<I>, "Type must be integral");
 };
 
 template <class O>
-class OutBytePort {
+class OutBytePort : public OutPort {
 public:
     virtual void push_data(O t) noexcept = 0;
-
-    virtual bool has_space() const noexcept = 0;
     
     static_assert(std::is_integral_v<O>, "Type must be integral");
 };

@@ -2,7 +2,6 @@
 #include "engine/log.h"
 #include "config.h"
 
-
 GameState::GameState() : State() {}
 
 void GameState::set_font_size() {
@@ -92,7 +91,7 @@ void GameState::init(WindowState *window_state) {
     new (&box)Editbox{BOX_X, BOX_Y, *window_state };
 
     processor_gui.~ProcessorGui();
-    new (&processor_gui)ProcessorGui(&processor, BOX_X, BOX_Y, &problem, window_state);
+    new (&processor_gui)ProcessorGui(&processor, &problem, BOX_X, BOX_Y, window_state);
 
     set_font_size();
 
