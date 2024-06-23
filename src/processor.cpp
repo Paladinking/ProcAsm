@@ -4,10 +4,6 @@
 #include "config.h"
 #include <string>
 
-InputPort::InputPort(const std::string& name) noexcept : name(name) {}
-
-OutputPort::OutputPort(const std::string& name) noexcept : name(name) {}
-
 Processor::Processor(uint32_t register_count) noexcept : gen_registers(register_count, 0), pc{0}, ticks{0} {
     instructions.push_back({InstructionType::NOP});
     instructions.back().line = 0;
@@ -40,11 +36,7 @@ bool Processor::compile_program(const std::vector<std::string> lines, std::vecto
     zero_flag = false;
 
     for (int i = 0; i < in_ports.size(); ++i) {
-        in_ports[i].reset();
-        change_callback(ProcessorChange::IN_PORT, i);
-    }
-    for (int i = 0; i < out_ports.size(); ++i) {
-        out_ports[i].reset();
+        in_ports[i].flush_input();
         change_callback(ProcessorChange::IN_PORT, i);
     }
 
@@ -64,9 +56,9 @@ void Processor::clock_tick() {
         case InstructionType::IN: {
             int port = instructions[pc].operands[1].port;
             int reg = instructions[pc].operands[0].reg;
-            if (in_ports[port].has_val()) {
-                gen_registers[reg] = in_ports[port].get_val();
-                in_ports[port].pop_val();
+            if (in_ports[port].has_data()) {
+                gen_registers[reg] = in_ports[port].get_data();
+                in_ports[port].pop_data();
                 ++pc;
                 zero_flag = gen_registers[reg] == 0;
                 change_callback(ProcessorChange::REGISTER, reg);
@@ -78,7 +70,7 @@ void Processor::clock_tick() {
             int port = instructions[pc].operands[1].port;
             int reg = instructions[pc].operands[0].reg;
             if (out_ports[port].has_space()) {
-                out_ports[port].push_val(gen_registers[reg]);
+                out_ports[port].push_data(gen_registers[reg]);
                 ++pc;
                 change_callback(ProcessorChange::OUT_PORT, port);
             }
@@ -159,9 +151,13 @@ void Processor::invalidate() {
 }
 
 ProcessorGui::ProcessorGui() {}
-ProcessorGui::ProcessorGui(Processor* processor, int x, int y, WindowState* window_state) : processor{processor},
-        x{x}, y{y}, window_state{window_state} {
+ProcessorGui::ProcessorGui(Processor* processor, int x, int y, ByteProblem* problem, WindowState* window_state) : processor{processor},
+        x{x}, y{y}, problem{problem}, window_state{window_state} {
     if (processor != nullptr) {
+
+        processor->in_ports[0].set_port(dynamic_cast<InBytePort<uint8_t>*>(problem->get_input_port(0)));
+        processor->out_ports[0].set_port(dynamic_cast<OutBytePort<uint8_t>*>(problem->get_output_port(0)));
+
         std::function<void(ProcessorChange, uint32_t)> f {std::bind(&ProcessorGui::change_callback, this,
                                      std::placeholders::_1, std::placeholders::_2)};
         processor->register_change_callback(f);
@@ -179,7 +175,7 @@ ProcessorGui::ProcessorGui(Processor* processor, int x, int y, WindowState* wind
         flags.set_text_color(0xf0, 0xf0, 0xf0, 0xff);
 
         for (uint32_t i = 0; i < processor->in_ports.size(); ++i) {
-            std::string s = processor->in_ports[i].has_val() ? std::to_string(processor->in_ports[i].get_val()) : "";
+            std::string s = processor->in_ports[i].has_data() ? std::to_string(processor->in_ports[i].get_data()) : "";
             in_ports.emplace_back(30 + 110 * i, -50, 80, BOX_LINE_HEIGHT, "In " + processor->in_ports[i].name, *window_state);
             in_ports.back().set_text_color(0xf0, 0xf0, 0xf0, 0xff);
             in_ports.emplace_back(30 + 110 * i, -50 + BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, s, *window_state);
@@ -277,6 +273,7 @@ void ProcessorGui::mouse_change(bool press) {
     }
     if (step.handle_press(x_pos, y_pos, press)) {
         if (processor->is_valid()) {
+            problem->clock_tick();
             processor->clock_tick();
         }
     }
@@ -288,14 +285,10 @@ void ProcessorGui::change_callback(ProcessorChange change, uint32_t reg) {
         registers[reg].set_text(name + ": " + std::to_string(processor->gen_registers[reg]));
         flags.set_text("Z: " + std::to_string(processor->zero_flag));
     } else if (change == ProcessorChange::OUT_PORT) {
-        if (processor->out_ports[reg].has_val()) {
-            out_ports[reg * 2 + 1].set_text(std::to_string(processor->out_ports[reg].get_val()));
-        } else {
-            out_ports[reg * 2 + 1].set_text("");
-        }
+        out_ports[reg * 2 + 1].set_text("");
     } else if (change == ProcessorChange::IN_PORT) {
-        if (processor->in_ports[reg].has_val()) {
-            in_ports[reg * 2 + 1].set_text(std::to_string(processor->in_ports[reg].get_val()));
+        if (processor->in_ports[reg].has_data()) {
+            in_ports[reg * 2 + 1].set_text(std::to_string(processor->in_ports[reg].get_data()));
         } else {
             in_ports[reg * 2 + 1].set_text("");
         }

@@ -92,7 +92,7 @@ void GameState::init(WindowState *window_state) {
     new (&box)Editbox{BOX_X, BOX_Y, *window_state };
 
     processor_gui.~ProcessorGui();
-    new (&processor_gui)ProcessorGui(&processor, BOX_X, BOX_Y, window_state);
+    new (&processor_gui)ProcessorGui(&processor, BOX_X, BOX_Y, &problem, window_state);
 
     set_font_size();
 
@@ -136,6 +136,7 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
     if (processor.is_running()) {
         ticks_passed += delta;
         while (ticks_passed > TICK_DELAY) {
+            problem.clock_tick();
             processor.clock_tick();
             ticks_passed -= TICK_DELAY;
         }

@@ -1,79 +1,12 @@
 #ifndef PROC_ASM_PROCESSOR_H
 #define PROC_ASM_PROCESSOR_H
 #include "instruction.h"
+#include "problem.h"
 #include "compiler.h"
 #include "engine/ui.h"
 #include <vector>
 #include <functional>
-
-class InputPort {
-public:
-    InputPort(const std::string& name) noexcept;
-
-    const std::string name;
-
-    uint8_t get_val() {
-        return ~((ix + 0xf0f0f0f0) ^ 0x123456);
-    }
-
-    bool has_val() {
-        return ix < 128;
-    }
-
-    bool has_space() {
-        return false;
-    }
-
-    void pop_val() {
-        ++ix;
-    }
-
-    void reset() {
-        ix = 0;
-    }
-
-    void push_val(uint8_t val) {}
-private:
-    uint64_t ix = 0;
-};
-
-class OutputPort {
-public:
-    OutputPort(const std::string& name) noexcept;
-
-    const std::string name;
-
-    uint8_t get_val() {
-        return val;
-    }
-
-    bool has_val() {
-        return has_value;
-    }
-
-    bool has_space() {
-        return true;
-    }
-
-    void pop_val() {
-        has_value = false;
-    }
-
-    void push_val(uint8_t val) {
-        this->val = val;
-        has_value = true;
-    }
-    
-    void reset() {
-        has_value = false;
-        val = 0;
-    }
-
-private:
-    bool has_value = false;
-
-    uint8_t val = 0;
-};
+#include "ports.h"
 
 class ProcessorGui;
 
@@ -102,8 +35,8 @@ private:
     bool valid = false;
     bool running = false;
 
-    std::vector<InputPort> in_ports {{"A"}};
-    std::vector<OutputPort> out_ports {{"Z"}};
+    std::vector<ForwardingInputPort<uint8_t>> in_ports {{"A"}};
+    std::vector<ForwardingOutputPort<uint8_t>> out_ports {{"Z"}};
     std::vector<Instruction> instructions {};
 
     std::uint32_t pc;
@@ -120,7 +53,7 @@ class ProcessorGui {
 public:
     ProcessorGui();
 
-    ProcessorGui(Processor* ptr, int x, int y, WindowState* window_state);
+    ProcessorGui(Processor* ptr, int x, int y, ByteProblem* problem, WindowState* window_state);
 
     void render() const;
 
@@ -132,6 +65,7 @@ private:
     void change_callback(ProcessorChange, uint32_t reg);
 
     Processor* processor {nullptr};
+    ByteProblem* problem {nullptr};
     WindowState* window_state {nullptr};
 
     int x {};

@@ -1,5 +1,6 @@
 #pragma once
 #include "editbox.h"
+#include "problem.h"
 #include "processor.h"
 #include <engine/game.h>
 #include <engine/ui.h>
@@ -34,6 +35,7 @@ private:
 
     Processor processor {4};
     ProcessorGui processor_gui{};
+    ByteProblem problem{};
 
     Uint64 ticks_passed = 0;
 
