@@ -1,6 +1,7 @@
 #include "editlines.h"
 #include <sstream>
 #include <climits>
+#include "config.h"
 
 bool TextPosition::operator<(const TextPosition &other) const {
     if (other.row == row) {
@@ -201,7 +202,7 @@ void EditLines::clear_selection() {
     selection_base = cursor_pos;
 }
 
-void EditLines::move_cursor(TextPosition pos, bool select) {
+void EditLines::set_cursor(TextPosition pos, bool select) {
     if (pos.row < 0) {
         pos.row = 0;
         pos.col = 0;
@@ -224,7 +225,11 @@ void EditLines::move_cursor(TextPosition pos, bool select) {
         cursor_pos = pos;
         clear_selection();
     }
-    edit_action = EditType::NONE;
+}
+
+void EditLines::move_cursor(TextPosition pos, bool select) {
+    set_cursor(pos, select);
+    clear_action();
 }
 
 const TextPosition &EditLines::get_cursor_pos() const {

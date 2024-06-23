@@ -342,6 +342,7 @@ bool Compiler::compile(const std::vector<std::string>& lines, std::vector<ErrorM
             errors.push_back(error);
             continue;
         }
+        i.line = row;
         res.push_back(i);
         char out[256];
         char* base = out;

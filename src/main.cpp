@@ -11,6 +11,7 @@ class SDL_context {
 public:
     SDL_context() {
         LOG_INFO("Initializing SDL");
+        //SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
         SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING, "1");
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
             LOG_CRITICAL("Failed initializing SDL: %s", SDL_GetError());
@@ -61,7 +62,7 @@ int main(int argv, char* argc[]) {
 
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_DEBUG);
 
-    StateGame game {new GameState(), 800, 800, "Text box!!!"};
+    StateGame game {new GameState(), 1920, 1080, "Text box!!!"};
     try {
         game.create();
         game.run();

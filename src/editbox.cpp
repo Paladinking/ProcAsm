@@ -114,6 +114,16 @@ void Editbox::set_text(std::string& text) {
     lines.clear_undo_stack();
 }
 
+void Editbox::set_errors(std::vector<ErrorMsg> msgs) {
+    error_msg.clear();
+    for (const auto& error: msgs) {
+        error_msg.emplace_back(- 8 - BOX_TEXT_MARGIN, BOX_TEXT_MARGIN + error.pos.row * BOX_LINE_HEIGHT,
+                               8, BOX_LINE_HEIGHT, error.msg, *window_state);
+        error_msg.back().set_text_color(0xf0, 0x0, 0x0, 0xff);
+        error_msg.back().set_align(Alignment::RIGHT);
+    }
+}
+
 enum class CharGroup {
     REGULAR, SYMBOL, SPACE, NEWLINE
 };
@@ -271,7 +281,7 @@ void Editbox::handle_keypress(SDL_Keycode key) {
             if (!lines.move_right(cursor, 1)) {
                 return;
             }
-            lines.move_cursor(cursor, true);
+            lines.set_cursor(cursor, true);
         }
         lines.insert_str("", EditType::DELETE);
     } else if (key == SDLK_BACKSPACE) {
@@ -280,7 +290,7 @@ void Editbox::handle_keypress(SDL_Keycode key) {
             if (!lines.move_left(cursor, 1)) {
                 return;
             }
-            lines.move_cursor(cursor, true);
+            lines.set_cursor(cursor, true);
         }
         lines.insert_str("", EditType::BACKSPACE);
     } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
@@ -317,6 +327,9 @@ void Editbox::render() {
     for (auto& box: boxes) {
         box.render(x + BOX_TEXT_MARGIN, y + BOX_TEXT_MARGIN, *window_state);
     }
+    for (auto& box: error_msg) {
+        box.render(x, y, *window_state);
+    } 
 
     if (show_cursor) {
         TextPosition cursor_pos = lines.get_cursor_pos();
@@ -338,6 +351,9 @@ void Editbox::set_dpi_scale(double dpi) {
     for (auto& line: boxes) {
         line.set_dpi_ratio(dpi);
     }
+    for (auto& box: error_msg) {
+        box.set_dpi_ratio(dpi);
+    }
 }
 bool Editbox::is_pressed(int mouse_x, int mouse_y) const {
     return mouse_x > x && mouse_x < x + BOX_SIZE && mouse_y > y && mouse_y < y + BOX_SIZE;
@@ -354,7 +370,7 @@ void Editbox::change_callback(TextPosition start, TextPosition end,
     if (boxes.size() < lines.line_count()) {
         for (int i = boxes.size(); i < lines.line_count(); ++i) {
             boxes.emplace_back(0, 0 + BOX_LINE_HEIGHT * i, BOX_SIZE - 2 * BOX_TEXT_MARGIN, BOX_LINE_HEIGHT, "", *window_state);
-            boxes.back().set_left_align(true);
+            boxes.back().set_align(Alignment::LEFT);
             boxes.back().set_text_color(0xf0, 0xf0, 0xf0, 0xff);
         }
     } else if (boxes.size() > lines.line_count()) {

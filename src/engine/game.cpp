@@ -26,7 +26,7 @@ void Game::create() {
 
     gWindow = SDL_CreateWindow(initial_title.c_str(), SDL_WINDOWPOS_UNDEFINED,
                                SDL_WINDOWPOS_UNDEFINED, initial_width,
-                               initial_height, SDL_WINDOW_HIDDEN);
+                               initial_height, SDL_WINDOW_HIDDEN | SDL_WINDOW_FULLSCREEN);
 
     if (gWindow == nullptr) {
         throw SDL_exception("Window could not be created, " +
@@ -152,7 +152,13 @@ void StateGame::init() {
     states.top()->init(&window_state);
 }
 
-void StateGame::render() { states.top()->render(); }
+void StateGame::render() { 
+    SDL_SetRenderDrawColor(gRenderer, 0x20, 0x20, 0x20, 0xff);
+    SDL_RenderClear(gRenderer);
+    states.top()->render();
+
+    SDL_RenderPresent(gRenderer);
+}
 
 void StateGame::tick(Uint64 delta) {
     StateStatus status = {StateStatus::NONE, nullptr};

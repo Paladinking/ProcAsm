@@ -8,6 +8,10 @@
 #include <string>
 #include <vector>
 
+enum class Alignment {
+    LEFT, CENTRE, RIGHT
+};
+
 class TextBox {
 public:
     TextBox() = default;
@@ -49,9 +53,9 @@ public:
     void set_text_color(Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 
     /**
-     * Sets left alignment of the text.
+     * Sets horizontal alignment of the text.
      */
-     void set_left_align(bool enabled);
+     void set_align(Alignment alignment);
 
     /**
      * Gets the color of the text;
@@ -90,7 +94,7 @@ private:
 
     SDL_Color color = {0, 0, 0, 0};
 
-    bool left_align = false;
+    Alignment alignment = Alignment::CENTRE;
 
     /**
      * Generates the texture containing the text of the button. Called by
@@ -141,6 +145,11 @@ public:
     void set_hover(bool hover);
 
     /**
+     * Handles press logic on a mouse event. Returns true when pressed.
+     */
+    bool handle_press(int mouseX, int mouseY, bool down);
+
+    /**
      * Renders the button.
      */
     void render(int x_offset, int y_offset,
@@ -148,6 +157,7 @@ public:
 
 private:
     bool hover = false;
+    bool down = false;
 
     std::shared_ptr<Texture> background;
 };

@@ -5,6 +5,7 @@
 #include "editlines.h"
 #include "engine/game.h"
 #include "engine/ui.h"
+#include "compiler.h"
 #include <vector>
 
 void change_callback(TextPosition start, TextPosition end, int size, void* box);
@@ -39,6 +40,8 @@ public:
     void input_char(char c);
 
     void set_text(std::string& text);
+
+    void set_errors(std::vector<ErrorMsg> msgs);
 private:
     friend void change_callback(TextPosition, TextPosition, int, void*);
     void change_callback(TextPosition start, TextPosition end, int removed);
@@ -56,7 +59,8 @@ private:
 
     EditLines lines {MAX_LINES, MAX_LINE_WIDTH, ::change_callback, this};
 
-    std::vector<TextBox> boxes;
+    std::vector<TextBox> boxes {};
+    std::vector<TextBox> error_msg {};
 
     bool show_cursor {false};
     Sint64 ticks_remaining = 0;

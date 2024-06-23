@@ -29,6 +29,7 @@ struct Operand {
 struct Instruction {
     InstructionType id;
     std::array<Operand, MAX_OPERANDS> operands;
+    uint64_t line;
 };
 
 #endif

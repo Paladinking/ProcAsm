@@ -78,7 +78,7 @@ private:
 class ProcessorGui;
 
 enum class ProcessorChange {
-    REGISTER, IN_PORT, OUT_PORT
+    REGISTER, IN_PORT, OUT_PORT, TICKS, RUNNING
 };
 
 class Processor {
@@ -90,14 +90,24 @@ public:
     void clock_tick();
 
     void register_change_callback(std::function<void(ProcessorChange, uint32_t)> fn);
+
+    bool is_valid() const noexcept;
+
+    bool is_running() const noexcept;
+
+    void invalidate();
 private:
     friend class ProcessorGui;
+
+    bool valid = false;
+    bool running = false;
 
     std::vector<InputPort> in_ports {{"A"}};
     std::vector<OutputPort> out_ports {{"Z"}};
     std::vector<Instruction> instructions {};
 
     std::uint32_t pc;
+    std::uint64_t ticks;
 
     bool zero_flag = false;
 
@@ -116,6 +126,8 @@ public:
 
     void set_dpi(double dpi_scale);
 
+    void mouse_change(bool press);
+
 private:
     void change_callback(ProcessorChange, uint32_t reg);
 
@@ -130,6 +142,12 @@ private:
 
     std::vector<TextBox> in_ports {};
     std::vector<TextBox> out_ports {};
+
+    TextBox flags {};
+    TextBox ticks {};
+
+    Button step {};
+    Button run {};
 };
 
 #endif

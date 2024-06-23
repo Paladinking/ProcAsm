@@ -1,12 +1,16 @@
 #ifndef PROCASM_CONFIG_H
 #define PROCASM_CONFIG_H
-constexpr int WIDTH = 800, HEIGHT = 800;
 
-constexpr int MAX_LINE_WIDTH = 46;
-constexpr int MAX_LINES = 19;
+// Milliseconds per clock cycle.
+constexpr int TICK_DELAY = 2;
+
+constexpr int WIDTH = 1920, HEIGHT = 1080;
+
+constexpr int MAX_LINE_WIDTH = 24;
+constexpr int MAX_LINES = 16;
 
 
-constexpr int BOX_SIZE = 400;
+constexpr int BOX_SIZE = 348;
 constexpr int BOX_X = WIDTH / 2 - BOX_SIZE / 2 + 100;
 constexpr int BOX_Y = HEIGHT / 2 - BOX_SIZE / 2;
 constexpr int BOX_TEXT_MARGIN = 16;

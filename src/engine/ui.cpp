@@ -1,5 +1,4 @@
 #include "ui.h"
-#include "log.h"
 #include <utility>
 
 TTF_Font *TextBox::font;
@@ -52,10 +51,12 @@ void TextBox::generate_texture() {
     texture = Texture(text_texture, width, height);
 
     TTF_SizeUTF8(font, text.c_str(), &width, &height);
-    if (left_align) {
+    if (alignment == Alignment::LEFT) {
         text_offset_x = 0;
-    } else {
+    } else if (alignment == Alignment::CENTRE) {
         text_offset_x = static_cast<int>((w - width / dpi_ratio) / 2);
+    } else {
+        text_offset_x = static_cast<int>(w - width / dpi_ratio);
     }
     text_offset_y = static_cast<int>((h - height / dpi_ratio) / 2);
 }
@@ -75,15 +76,18 @@ void TextBox::set_text(const std::string &new_text) {
     generate_texture();
 }
 
-void TextBox::set_left_align(bool enabled) {
-    left_align = enabled;
-    if (enabled) {
+void TextBox::set_align(Alignment align) {
+    alignment = align;
+    if (align == Alignment::LEFT) {
         text_offset_x = 0;
-    } else {
+    } else if (align == Alignment::CENTRE) {
         int width, height;
-        //TTF_SetFontSize(font, static_cast<int>(dpi_ratio * font_size));
         TTF_SizeUTF8(font, text.c_str(), &width, &height);
         text_offset_x = static_cast<int>((w - width / dpi_ratio) / 2);
+    } else {
+        int width, height;
+        TTF_SizeUTF8(font, text.c_str(), &width, &height);
+        text_offset_x = static_cast<int>(w - width / dpi_ratio);
     }
 }
 
@@ -131,6 +135,20 @@ bool Button::is_pressed(int mouseX, int mouseY) const {
 
 void Button::set_hover(const bool new_hover) { hover = new_hover; }
 
+bool Button::handle_press(int mouseX, int mouseY, bool press) {
+    if (!is_pressed(mouseX, mouseY)) {
+        down = false;
+    } else if (press) {
+        down = true;
+    } else if (down){
+        down = false;
+        return true;
+    } else {
+        down = false;
+    }
+    return false;
+}
+
 void Button::render(const int x_offset, const int y_offset,
                     const WindowState &window_state) const {
     SDL_Rect r = {x + x_offset, y + y_offset, w, h};
@@ -143,10 +161,18 @@ void Button::render(const int x_offset, const int y_offset,
         background->set_dimensions(r.w, r.h);
         background->render_corner(r.x, r.y);
     } else {
-        if (hover) {
-            SDL_SetRenderDrawColor(gRenderer, 200, 200, 240, 0xFF);
+        SDL_SetRenderDrawColor(gRenderer, 0xf0, 0xf0, 0xf0, 0xff);
+        SDL_RenderFillRect(gRenderer, &r);
+        r.x += 2;
+        r.y += 2;
+        r.w -= 4;
+        r.h -= 4;
+        if (down) {
+            SDL_SetRenderDrawColor(gRenderer, 50, 50, 50, 0xFF);
+        } else if (hover) {
+            SDL_SetRenderDrawColor(gRenderer, 80, 80, 80, 0xFF);
         } else {
-            SDL_SetRenderDrawColor(gRenderer, 100, 100, 220, 0xFF);
+            SDL_SetRenderDrawColor(gRenderer, 30, 30, 30, 0xFF);
         }
         SDL_RenderFillRect(gRenderer, &r);
     }

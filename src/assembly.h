@@ -30,11 +30,12 @@ private:
 
     bool mouse_down = false;
 
-    std::vector<TextBox> error_msgs {};
     Editbox box;
 
     Processor processor {4};
     ProcessorGui processor_gui{};
+
+    Uint64 ticks_passed = 0;
 
     double dpi_scale = 0.0;
 };

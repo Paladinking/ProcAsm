@@ -1,7 +1,6 @@
 #include "assembly.h"
 #include "engine/log.h"
 #include "config.h"
-#include "processor.h"
 
 
 GameState::GameState() : State() {}
@@ -28,6 +27,7 @@ void GameState::set_font_size() {
     TTF_SetFontSizeDPI(gFont, 20, hpdi, vdpi);
     TTF_SizeUTF8(gFont, "a", &w, &h);
 
+    LOG_DEBUG("Finding font size for dpi %f", dpi_scale);
     while (true) {
         if (w == target_w && h == target_h) break;
         int old_hdpi = hpdi;
@@ -59,13 +59,11 @@ void GameState::set_font_size() {
             break;
         }
     }
+    LOG_DEBUG("Found font size");
     TTF_SetFontSizeDPI(gFont, 20, hpdi, vdpi);
 
     box.set_dpi_scale(dpi_scale);
     processor_gui.set_dpi(dpi_scale);
-    for (auto& msg: error_msgs) {
-        msg.set_dpi_ratio(dpi_scale);
-    }
 }
 
 void GameState::handle_size_change() {
@@ -88,7 +86,7 @@ void GameState::init(WindowState *window_state) {
                               &window_state->window_height);
 
     LOG_INFO("Physical size: %d, %d\n", window_state->window_width, window_state->window_height);
-    LOG_INFO("Logical size: %d, %d\n", window_state->screen_width, window_state->screen_width);
+    LOG_INFO("Logical size: %d, %d\n", window_state->screen_width, window_state->screen_height);
 
     box.~Editbox();
     new (&box)Editbox{BOX_X, BOX_Y, *window_state };
@@ -104,6 +102,9 @@ void GameState::init(WindowState *window_state) {
         char *data = new char[size];
         if (SDL_RWread(file, data, 1, size) == size) {
             std::string str{data, static_cast<std::size_t>(size)};
+            if (str.back() == '\n') {
+                str.pop_back();
+            }
             box.set_text(str);
         }
         delete[] data;
@@ -112,22 +113,10 @@ void GameState::init(WindowState *window_state) {
 }
 
 void GameState::render() {
-    SDL_SetRenderDrawColor(gRenderer, 0x20, 0x20, 0x20, 0xff);
-    SDL_RenderClear(gRenderer);
-
     processor_gui.render();
-    for (auto& a: error_msgs) {
-        a.render(0, 0, *window_state);
-    }
 
     box.render();
-
-    SDL_SetRenderDrawColor(gRenderer, 0xf0, 0xf0, 0xf0, 0xff);
-
-
-    SDL_RenderPresent(gRenderer);
 }
-
 void GameState::tick(const Uint64 delta, StateStatus &res) {
     if (should_exit) {
         SDL_RWops* file = SDL_RWFromFile("program.txt", "w");
@@ -144,43 +133,43 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
     }
 
     box.tick(delta, mouse_down);
+    if (processor.is_running()) {
+        ticks_passed += delta;
+        while (ticks_passed > TICK_DELAY) {
+            processor.clock_tick();
+            ticks_passed -= TICK_DELAY;
+        }
+    }
+        //processor.clock_tick();
 }
 
 void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {
     if (mouse == SDL_BUTTON_LEFT && mouse_down) {
         mouse_down = false;
+        processor_gui.mouse_change(false);
     }
 }
 
 void GameState::handle_down(const SDL_Keycode key, const Uint8 mouse) {
-    static bool has_progam = false;
     if (key == SDLK_ESCAPE) {
         should_exit = true;
     } else if (mouse == SDL_BUTTON_LEFT) {
         mouse_down = true;
+        processor_gui.mouse_change(true);
         if (box.is_pressed(window_state->mouseX, window_state->mouseY)) {
             SDL_StartTextInput();
             box.select();
-            error_msgs.clear();
-            has_progam = false;
+            processor.invalidate();
         } else {
             box.unselect();
             SDL_StopTextInput();
-            error_msgs.clear();
             const auto& text = box.get_text();
-            std::vector<ErrorMsg> errors;
-            if (has_progam) {
-                processor.clock_tick();
-            } else if (!processor.compile_program(text, errors)) {
-                has_progam = false;
-                for (const auto& error: errors) {
-                    error_msgs.emplace_back(BOX_TEXT_MARGIN, BOX_Y + BOX_TEXT_MARGIN + error.pos.row * BOX_LINE_HEIGHT,
-                                            8, BOX_LINE_HEIGHT, error.msg, *window_state);
-                    error_msgs.back().set_text_color(0xf0, 0x0, 0x0, 0xff);
-                    error_msgs.back().set_left_align(true);
-                }
+            if (processor.is_valid()) {
+
             } else {
-                has_progam = true;
+                std::vector<ErrorMsg> errors;
+                processor.compile_program(text, errors);
+                box.set_errors(errors);
             }
         }
     } else {
