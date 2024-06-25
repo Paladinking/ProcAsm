@@ -250,8 +250,10 @@ std::unordered_map<std::string, InstuctionSlot> BASIC_INSTRUCTIONS = {
  */
 std::vector<std::pair<std::size_t, std::size_t>> split(const std::string& s, std::size_t& label_end) {
     std::vector<std::pair<std::size_t, std::size_t>> res {};
+    std::size_t end_ix = s.find_last_of(";#");
+
     std::size_t start_ix = s.find(':');
-    if (start_ix == std::string::npos) {
+    if (start_ix == std::string::npos || start_ix > end_ix) {
         start_ix = 0;
         label_end = 0;
     } else {
@@ -259,7 +261,6 @@ std::vector<std::pair<std::size_t, std::size_t>> split(const std::string& s, std
         start_ix = start_ix + 1;
     }
     start_ix = s.find_first_not_of(", \t", start_ix);
-    std::size_t end_ix = s.find_last_of(";#");
     Instruction i;
 
     while (true) {
@@ -314,7 +315,10 @@ bool Compiler::compile(const std::vector<std::string>& lines, std::vector<ErrorM
                 errors.emplace_back("Duplicate label", TextPosition{row, 0});
                 continue;
             }
-            labels.insert({line.substr(0, label_size), instruction_count - 1});
+            for (auto& c: label) {
+                c = std::toupper(c);
+            }
+            labels.insert({label, instruction_count - 1});
         }
     }
     row = -1;
