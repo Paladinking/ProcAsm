@@ -168,6 +168,8 @@ public:
 
     void clear_choice();
 
+    int get_choice() const;
+
     void render(int x_offset, int y_offset, const WindowState& window_state) const;
 
     int handle_press(int mouseX, int mouseY, bool down);
@@ -182,6 +184,8 @@ private:
     bool show_list = false;
 
     int max_w, max_h;
+
+    int ix;
 
     std::string default_value;
     

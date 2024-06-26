@@ -1,12 +1,53 @@
 #include "processor_gui.h"
 #include "config.h"
+#include "engine/log.h"
 
 ProcessorGui::ProcessorGui() {}
 ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, int y, WindowState* window_state) : processor{processor},
     problem{problem}, x{x}, y{y}, window_state{window_state} {
-        std::function<void(ProcessorChange, uint32_t)> f {std::bind(&ProcessorGui::change_callback, this,
-                                     std::placeholders::_1, std::placeholders::_2)};
-    processor->register_change_callback(f);
+
+    processor->register_events(&window_state->events);
+    problem->register_events(&window_state->events);
+
+    auto running_change = [](EventInfo info, void* aux) {
+        if (info.u) {
+            reinterpret_cast<ProcessorGui*>(aux)->run.set_text("Stop");
+        } else {
+            reinterpret_cast<ProcessorGui*>(aux)->run.set_text("Run");
+        }
+    };
+
+    auto register_change = [](EventInfo info, void* aux) {
+        ProcessorGui* gui = reinterpret_cast<ProcessorGui*>(aux);
+        std::string name = "R" + std::to_string(info.u);
+        auto val = gui->processor->gen_registers[info.u];
+        gui->registers[info.u].set_text(name + ": " + std::to_string(val));
+    };
+
+    auto outport_change = [](EventInfo info, void* aux) {
+        reinterpret_cast<ProcessorGui*>(aux)->out_ports[info.u * 2 + 1].set_text("");
+    };
+
+    auto inport_change = [](EventInfo info, void* aux) {
+        auto* gui = reinterpret_cast<ProcessorGui*>(aux);
+        LOG_INFO("INPORT_CHANGE: %llu", info.u);
+        if (gui->processor->in_ports[info.u].has_data()) {
+            gui->in_ports[info.u * 2 + 1].set_text(std::to_string(gui->processor->in_ports[info.u].get_data()));
+        } else {
+            gui->in_ports[info.u * 2 + 1].set_text("");
+        }
+    };
+
+    auto ticks_change = [](EventInfo info, void* aux) {
+        reinterpret_cast<ProcessorGui*>(aux)->ticks.set_text("Ticks: " + std::to_string(info.u));
+    };
+
+    window_state->events.register_callback(EventId::RUNNING_CHANGED, running_change, this);
+    window_state->events.register_callback(EventId::REGISTER_CHANGED, register_change, this);
+    window_state->events.register_callback(EventId::OUT_PORT_CHANGED, outport_change, this);
+    window_state->events.register_callback(EventId::IN_PORT_CHANGED, inport_change, this);
+    window_state->events.register_callback(EventId::TICKS_CHANGED, ticks_change, this);
+
     for (uint32_t i = 0; i < processor->gen_registers.size(); ++i) {
         registers.emplace_back(5 + BOX_SIZE - 120, 5 + BOX_LINE_HEIGHT * i, 8, BOX_LINE_HEIGHT, "R" + std::to_string(i) + ": 0", *window_state);
         registers.back().set_align(Alignment::LEFT);
@@ -40,6 +81,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
     run.set_text_color(0xf0, 0xf0, 0xf0, 0xff);
 
 
+    inputport_map.clear();
     for (int i = 0; i < problem->input_ports.size(); ++i) {
         std::string name = std::to_string(i);
         problem_inputs.emplace_back(10 + 90 * i, -280 + 80 / 2 - BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, name, *window_state);
@@ -47,8 +89,28 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
         problem_inputs.emplace_back(10 + 90 * i, -280 + 80 / 2, 80, BOX_LINE_HEIGHT, "None", *window_state);
         problem_inputs.back().set_text_color(TEXT_COLOR);
 
-        dropdowns.push_back(Dropdown(90 * i, -280 + 90, 100, 40, "Select - ", {"N / A"}, *window_state));
+        inputport_map.emplace_back();
+
+        std::vector<std::string> port_names {};
+        for (int j = 0; j < processor->in_ports.size(); ++j) {
+            auto &port = processor->in_ports[j];
+            auto p = port.check_port(dynamic_cast<InPort*>(problem->input_ports[i]));
+            if (p != nullptr) {
+                port_names.push_back(port.get_name());
+                inputport_map.back().push_back(j);
+            }
+        }
+
+        dropdowns.push_back(Dropdown(90 * i, -280 + 90, 100, 40, "Select - ", port_names, *window_state));
         dropdowns.back().set_text_color(TEXT_COLOR);
+    }
+
+    for (int i = 0; i < problem->output_ports.size(); ++i) {
+        std::string name = std::to_string(i);
+        problem_outputs.emplace_back(10 + 90 * i, BOX_SIZE + 200 + 80 /2 - BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, name, *window_state);
+        problem_outputs.back().set_text_color(TEXT_COLOR);
+        problem_outputs.emplace_back(10 + 90 * i, BOX_SIZE + 200 + 80 /2, 80, BOX_LINE_HEIGHT, "None", *window_state);
+        problem_outputs.back().set_text_color(TEXT_COLOR);
     }
 }
 
@@ -98,8 +160,16 @@ void ProcessorGui::render() const {
         SDL_Rect rect = {x + 10, y - 280, 80, 80};
         SDL_RenderDrawRect(gRenderer, &rect);
     }
+
+    for (int i = 0; i < problem->output_ports.size(); ++i) {
+        SDL_Rect rect = {x + 10, y + BOX_SIZE + 200, 80, 80};
+        SDL_RenderDrawRect(gRenderer, &rect);
+    }
     for (auto& in: problem_inputs) {
         in.render(x, y, *window_state);
+    }
+    for (auto& out: problem_outputs) {
+        out.render(x, y, *window_state);
     }
     for (auto& dd: dropdowns) {
         dd.render(x, y, *window_state);
@@ -127,8 +197,31 @@ void ProcessorGui::mouse_change(bool press) {
     int x_pos = window_state->mouseX - x;
     int y_pos = window_state->mouseY - y;
 
-    for (auto& dd: dropdowns) {
-        dd.handle_press(x_pos, y_pos, press);
+    for (int i = 0; i < dropdowns.size(); ++i) {
+        int last_choice = dropdowns[i].get_choice();
+        int choice = dropdowns[i].handle_press(x_pos, y_pos, press);
+        if (choice != -1 && choice != last_choice) {
+            uint64_t ix = inputport_map[i][choice];
+            for (int j = 0; j < dropdowns.size(); ++j) {
+                if (i != j && dropdowns[j].get_choice() != -1) {
+                    if (inputport_map[j][dropdowns[j].get_choice()] == ix) {
+                        dropdowns[j].clear_choice();
+                    }
+                }
+            }
+            if (last_choice != -1) {
+                uint64_t ix = inputport_map[i][last_choice];
+                processor->in_ports[ix].set_port(nullptr);
+                window_state->events.notify_event(EventId::IN_PORT_CHANGED, ix);
+            }
+            auto& port = processor->in_ports[ix];
+            auto *var = port.check_port(dynamic_cast<InPort*>(problem->get_input_port(i)));
+            port.set_port(var);
+            window_state->events.notify_event(EventId::IN_PORT_CHANGED, ix);
+            problem->reset();
+            processor->invalidate();
+            processor->reset();
+        }
     }
 
     if (run.handle_press(x_pos, y_pos, press)) {
@@ -144,31 +237,8 @@ void ProcessorGui::mouse_change(bool press) {
     }
     if (step.handle_press(x_pos, y_pos, press)) {
         if (processor->is_valid()) {
+            problem->clock_tick();
             processor->clock_tick();
         }
-    }
-}
-
-void ProcessorGui::change_callback(ProcessorChange change, uint32_t reg) {
-    if (change == ProcessorChange::REGISTER) {
-        std::string name = "R" + std::to_string(reg);
-        registers[reg].set_text(name + ": " + std::to_string(processor->gen_registers[reg]));
-        flags.set_text("Z: " + std::to_string(processor->zero_flag));
-    } else if (change == ProcessorChange::OUT_PORT) {
-        out_ports[reg * 2 + 1].set_text("");
-    } else if (change == ProcessorChange::IN_PORT) {
-        if (processor->in_ports[reg].has_data()) {
-            in_ports[reg * 2 + 1].set_text(std::to_string(processor->in_ports[reg].get_data()));
-        } else {
-            in_ports[reg * 2 + 1].set_text("");
-        }
-    } else if (change == ProcessorChange::RUNNING) {
-        if (reg) {
-            run.set_text("Stop");
-        } else {
-            run.set_text("Run");
-        }
-    } else {
-        ticks.set_text("Ticks: " + std::to_string(processor->ticks));
     }
 }

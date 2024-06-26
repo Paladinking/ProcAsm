@@ -1,8 +1,8 @@
 #ifndef PROC_ASM_PROCESSOR_H
 #define PROC_ASM_PROCESSOR_H
 #include "instruction.h"
+#include "event_id.h"
 #include "compiler.h"
-#include "engine/ui.h"
 #include <vector>
 #include <functional>
 #include "ports.h"
@@ -11,6 +11,9 @@
 #define PROC_GUI_HEAD
 class ProcessorGui;
 #endif
+
+constexpr int MAX_REGISTERS = 64;
+constexpr int MAX_PORTS = 16;
 
 enum class ProcessorChange {
     REGISTER, IN_PORT, OUT_PORT, TICKS, RUNNING
@@ -24,13 +27,15 @@ public:
 
     void clock_tick();
 
-    void register_change_callback(std::function<void(ProcessorChange, uint32_t)> fn);
+    void register_events(Events* events);
 
     bool is_valid() const noexcept;
 
     bool is_running() const noexcept;
 
     void invalidate();
+
+    void reset();
 
     std::vector<InPort*> get_inputs();
 
@@ -41,7 +46,7 @@ private:
     bool valid = false;
     bool running = false;
 
-    std::vector<ForwardingInputPort<uint8_t>> in_ports {{"A"}};
+    std::vector<ForwardingInputPort<uint8_t>> in_ports {{"A"}, {"B"}};
     std::vector<ForwardingOutputPort<uint8_t>> out_ports {{"Z"}};
     std::vector<Instruction> instructions {};
 
@@ -52,7 +57,7 @@ private:
 
     std::vector<uint8_t> gen_registers;
 
-    std::function<void(ProcessorChange, uint32_t)> change_callback;
+    Events* events;
 };
 
 

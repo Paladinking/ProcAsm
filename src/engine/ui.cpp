@@ -176,7 +176,7 @@ void Button::render(const int x_offset, const int y_offset,
 }
 
 Dropdown::Dropdown(int x, int y, int w, int h, const std::string& text, const std::vector<std::string>& choices, const WindowState& window_state) :
-    base(x, y, w, h, text, window_state), default_value(text) {
+    base(x, y, w, h, text, window_state), default_value(text), ix{-1} {
     set_choices(choices, window_state);
 }
 
@@ -254,6 +254,7 @@ int Dropdown::handle_press(int mouseX, int mouseY, bool press) {
             }
         }
         if (pressed != -1) {
+            ix = pressed;
             base.set_text(choices[pressed].get_text().substr(1));
         }
         return pressed;
@@ -262,7 +263,12 @@ int Dropdown::handle_press(int mouseX, int mouseY, bool press) {
 }
 
 void Dropdown::clear_choice() {
+    ix = -1;
     base.set_text(default_value);
+}
+
+int Dropdown::get_choice() const {
+    return ix;
 }
 
 void Dropdown::set_text_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {

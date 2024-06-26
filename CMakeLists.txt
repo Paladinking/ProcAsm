@@ -16,6 +16,7 @@ set(ENGINGE_SRC
     ${ENGINE_DIR}/random.cpp
     ${ENGINE_DIR}/texture.cpp
     ${ENGINE_DIR}/ui.cpp
+    ${ENGINE_DIR}/events.cpp
 )
 
 add_executable(embed tools/embed.c)

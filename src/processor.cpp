@@ -1,8 +1,5 @@
 #include "processor.h"
 #include "engine/log.h"
-#include "engine/ui.h"
-#include "config.h"
-#include "channel.h"
 #include <string>
 
 Processor::Processor(uint32_t register_count) noexcept : gen_registers(register_count, 0), pc{0}, ticks{0} {
@@ -27,19 +24,12 @@ bool Processor::compile_program(const std::vector<std::string> lines, std::vecto
         return false;
     }
 
-    for (int i = 0; i < gen_registers.size(); ++i) {
+    for (uint64_t i = 0; i < gen_registers.size(); ++i) {
         gen_registers[i] = 0;
-        change_callback(ProcessorChange::REGISTER, i);
+        events->notify_event(EventId::REGISTER_CHANGED, i);
     }
-    running = false;
-    pc = 0;
-    ticks = 0;
-    zero_flag = false;
 
-    for (int i = 0; i < in_ports.size(); ++i) {
-        in_ports[i].flush_input();
-        change_callback(ProcessorChange::IN_PORT, i);
-    }
+    reset();
 
     if (instructions.size() == 0) {
         instructions.push_back({InstructionType::NOP});
@@ -55,62 +45,62 @@ void Processor::clock_tick() {
     }
     switch(instructions[pc].id) {
         case InstructionType::IN: {
-            int port = instructions[pc].operands[1].port;
-            int reg = instructions[pc].operands[0].reg;
+            uint64_t port = instructions[pc].operands[1].port;
+            uint64_t reg = instructions[pc].operands[0].reg;
             if (in_ports[port].has_data()) {
                 gen_registers[reg] = in_ports[port].get_data();
                 in_ports[port].pop_data();
                 ++pc;
                 zero_flag = gen_registers[reg] == 0;
-                change_callback(ProcessorChange::REGISTER, reg);
-                change_callback(ProcessorChange::IN_PORT, port);
+                events->notify_event(EventId::REGISTER_CHANGED, reg);
+                events->notify_event(EventId::IN_PORT_CHANGED, port);
             }
             break;
         }
         case InstructionType::OUT: {
-            int port = instructions[pc].operands[1].port;
-            int reg = instructions[pc].operands[0].reg;
+            uint64_t port = instructions[pc].operands[1].port;
+            uint64_t reg = instructions[pc].operands[0].reg;
             if (out_ports[port].has_space()) {
                 out_ports[port].push_data(gen_registers[reg]);
                 ++pc;
-                change_callback(ProcessorChange::OUT_PORT, port);
+                events->notify_event(EventId::OUT_PORT_CHANGED, port);
             }
             break;
         }
         case InstructionType::MOVE_REG: {
-            int dest = instructions[pc].operands[0].reg;
-            int src = instructions[pc].operands[1].reg;
+            uint64_t dest = instructions[pc].operands[0].reg;
+            uint64_t src = instructions[pc].operands[1].reg;
             gen_registers[dest] = gen_registers[src];
             ++pc;
             zero_flag = gen_registers[dest] == 0;
-            change_callback(ProcessorChange::REGISTER, dest);
+            events->notify_event(EventId::REGISTER_CHANGED, dest);
             break;
         }
         case InstructionType::MOVE_IMM: {
-            int dest = instructions[pc].operands[0].reg;
+            uint64_t dest = instructions[pc].operands[0].reg;
             uint64_t val = instructions[pc].operands[1].imm_u;
             gen_registers[dest] = val;
             ++pc;
             zero_flag = gen_registers[dest] == 0;
-            change_callback(ProcessorChange::REGISTER, dest);
+            events->notify_event(EventId::REGISTER_CHANGED, dest);
             break;
         }
         case InstructionType::ADD: {
-            int dest = instructions[pc].operands[0].reg;
-            int src = instructions[pc].operands[1].reg;
+            uint64_t dest = instructions[pc].operands[0].reg;
+            uint64_t src = instructions[pc].operands[1].reg;
             gen_registers[dest] += gen_registers[src];
             ++pc;
             zero_flag = gen_registers[dest] == 0;
-            change_callback(ProcessorChange::REGISTER, dest);
+            events->notify_event(EventId::REGISTER_CHANGED, dest);
             break;
         }
         case InstructionType::SUB: {
-            int dest = instructions[pc].operands[0].reg;
-            int src = instructions[pc].operands[1].reg;
+            uint64_t dest = instructions[pc].operands[0].reg;
+            uint64_t src = instructions[pc].operands[1].reg;
             gen_registers[dest] -= gen_registers[src];
             ++pc;
             zero_flag = gen_registers[dest] == 0;
-            change_callback(ProcessorChange::REGISTER, dest);
+            events->notify_event(EventId::REGISTER_CHANGED, dest);
             break;
         }
         case InstructionType::NOP: {
@@ -130,11 +120,16 @@ void Processor::clock_tick() {
     if (pc == instructions.size()) {
         pc = 0;
     }
-    change_callback(ProcessorChange::TICKS, 0);
+    events->notify_event(EventId::TICKS_CHANGED, ticks);
 }
 
-void Processor::register_change_callback(std::function<void(ProcessorChange, uint32_t)> fn) {
-    change_callback = fn;
+void Processor::register_events(Events* events) {
+    this->events = events;
+    events->register_event(EventType::UNIFIED_VEC, EventId::REGISTER_CHANGED, MAX_REGISTERS);
+    events->register_event(EventType::UNIFIED, EventId::TICKS_CHANGED);
+    events->register_event(EventType::UNIFIED_VEC, EventId::IN_PORT_CHANGED, MAX_PORTS);
+    events->register_event(EventType::UNIFIED_VEC, EventId::OUT_PORT_CHANGED, MAX_PORTS);
+    events->register_event(EventType::UNIFIED, EventId::RUNNING_CHANGED);
 }
 
 bool Processor::is_valid() const noexcept {
@@ -145,10 +140,24 @@ bool Processor::is_running() const noexcept {
     return running;
 }
 
+void Processor::reset() {
+    running = false;
+    pc = 0;
+    ticks = 0;
+    zero_flag = false;
+
+    for (uint64_t i = 0; i < in_ports.size(); ++i) {
+        in_ports[i].flush_input();
+        events->notify_event(EventId::IN_PORT_CHANGED, i);
+    }
+    pc = 0;
+    events->notify_event(EventId::RUNNING_CHANGED, static_cast<uint64_t>(0));
+}
+
 void Processor::invalidate() {
     valid = false;
     running = false;
-    change_callback(ProcessorChange::RUNNING, 0);
+    events->notify_event(EventId::RUNNING_CHANGED, static_cast<uint64_t>(1));
 }
 
 std::vector<InPort*> Processor::get_inputs() {

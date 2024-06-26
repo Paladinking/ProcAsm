@@ -10,6 +10,8 @@ public:
     virtual bool has_data() const noexcept = 0;
 
     virtual void flush_input() noexcept = 0;
+
+    virtual const std::string& get_name() const noexcept = 0;
 };
 
 class OutPort {
@@ -44,6 +46,10 @@ public:
 template<class I>
 class NullByteInput final : public InBytePort<I> {
 public:
+    virtual const std::string& get_name() const noexcept override {
+        return name;
+    }
+
     virtual I get_data() const noexcept override {
         return {};
     }
@@ -55,7 +61,12 @@ public:
     }
 
     virtual void flush_input() noexcept override {}
+
+    static const std::string name;
 };
+
+template<class I>
+const std::string NullByteInput<I>::name = "NULL";
 
 template <class O>
 class NullByteOutput final : public OutBytePort<O> {
@@ -71,6 +82,14 @@ public:
     const std::string name;
 
     ForwardingInputPort(const std::string& name) : name{name}, port{&null_port} {}
+
+    virtual const std::string& get_name() const noexcept final {
+        return name;
+    }
+
+    InBytePort<I>* check_port(InPort* in_port) const noexcept {
+        return dynamic_cast<InBytePort<I>*>(in_port);
+    }
 
     virtual I get_data() const noexcept final {
         return port->get_data();
@@ -112,6 +131,10 @@ public:
 
     ForwardingOutputPort(const std::string& name) : name{name}, port{&null_port} {}
 
+    OutBytePort<O>* check_port(OutPort* in_port) const noexcept {
+        return dynamic_cast<OutBytePort<O>*>(in_port);
+    }
+
     virtual void push_data(O t) noexcept override {
         port->push_data(t);
     }
@@ -140,6 +163,10 @@ template<class T>
 class BlockingBytePort : public BytePort<T, T> {
 public:
     BlockingBytePort(const std::string& name) : BytePort<T, T>(name), element{}, empty{true} {}
+
+    virtual const std::string& get_name() const noexcept override {
+        return BytePort<T, T>::name;
+    }
 
     virtual bool has_data() const noexcept override {
         return !empty;

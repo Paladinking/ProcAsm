@@ -18,9 +18,9 @@ enum class InstructionSlotType {
 struct Operand {
     uint32_t type;
     union {
-        int reg;
+        uint64_t reg;
         uint32_t label;
-        int port;
+        uint64_t port;
         uint64_t imm_u;
         int64_t imm_s;
     };

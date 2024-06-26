@@ -2,7 +2,7 @@
 #define PROC_ASM_PROBLEM_H
 #include <vector>
 #include "ports.h"
-#include "engine/ui.h"
+#include "event_id.h"
 
 #ifndef PROC_GUI_HEAD
 #define PROC_GUI_HEAD
@@ -14,6 +14,8 @@ public:
     ByteProblem();
 
     void reset();
+
+    void register_events(Events* events);
 
     OutBytePort<uint8_t>* get_input_port(int ix);
 
@@ -31,6 +33,7 @@ private:
     std::vector<OutBytePort<uint8_t>*> input_ports;
     std::vector<InBytePort<uint8_t>*> output_ports;
 
+    Events* events;
 };
 
 #endif

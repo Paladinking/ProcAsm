@@ -353,7 +353,7 @@ bool Compiler::compile(const std::vector<std::string>& lines, std::vector<ErrorM
         base = base + sprintf(base, "%d: ", static_cast<int>(i.id));
         for (int ix = 0; ix < MAX_OPERANDS; ++ix) {
             if (i.operands[ix].type == GEN_REG) {
-                base = base + sprintf(base, "r%d, ", i.operands[ix].reg);
+                base = base + sprintf(base, "r%llu, ", i.operands[ix].reg);
             } else if (i.operands[ix].type == IMMU64) {
                 base = base + sprintf(base, "%llu, ", i.operands[ix].imm_u);
             } else if (i.operands[ix].type == IMMS64) {

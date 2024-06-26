@@ -1,4 +1,5 @@
 #include "assembly.h"
+#include "event_id.h"
 #include "engine/log.h"
 #include "config.h"
 
@@ -147,6 +148,16 @@ void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {
     if (mouse == SDL_BUTTON_LEFT && mouse_down) {
         mouse_down = false;
         processor_gui.mouse_change(false);
+        if (!box.is_pressed(window_state->mouseX, window_state->mouseY)) {
+            box.unselect();
+            SDL_StopTextInput();
+            if (!processor.is_valid()) {
+                std::vector<ErrorMsg> errors;
+                const auto& text = box.get_text();
+                processor.compile_program(text, errors);
+                box.set_errors(errors);
+            }
+        }
     }
 }
 
@@ -163,14 +174,6 @@ void GameState::handle_down(const SDL_Keycode key, const Uint8 mouse) {
         } else {
             box.unselect();
             SDL_StopTextInput();
-            const auto& text = box.get_text();
-            if (processor.is_valid()) {
-
-            } else {
-                std::vector<ErrorMsg> errors;
-                processor.compile_program(text, errors);
-                box.set_errors(errors);
-            }
         }
     } else {
         box.handle_keypress(key);

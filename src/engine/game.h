@@ -1,6 +1,7 @@
 #ifndef GAME_00_H
 #define GAME_00_H
 #include "engine.h"
+#include "events.h"
 #include "exceptions.h"
 #include "texture.h"
 #include <SDL.h>
@@ -33,6 +34,8 @@ struct WindowState {
     int mouseY;
     Uint32 mouse_mask;
     const Uint8 *keyboard_state;
+
+    Events events;
 };
 
 /**
