@@ -1,7 +1,6 @@
 #include "events.h"
 
-
-void Events::register_event(EventType type, int id, int vector_size) {
+int Events::register_event(EventType type, int id, int vector_size) {
     if (id < 0) {
         id = events.size();
     }
@@ -19,6 +18,7 @@ void Events::register_event(EventType type, int id, int vector_size) {
             }
         }
     }
+    return id;
 }
 
 void Events::register_callback(int id, void(*callback)(EventInfo, void*), void* aux)  {

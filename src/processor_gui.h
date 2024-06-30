@@ -21,6 +21,7 @@ public:
     void mouse_change(bool press);
 
 private:
+    void on_input_dropdown(uint64_t ix, uint64_t val);
 
     Processor* processor {nullptr};
     ByteProblem* problem {nullptr};
@@ -30,9 +31,9 @@ private:
     int x {};
     int y {};
 
-    std::vector<TextBox> problem_inputs {};
-    std::vector<TextBox> problem_outputs {};
-    std::vector<Dropdown> dropdowns {};
+    std::vector<Component<TextBox>> problem_inputs {};
+    std::vector<Component<TextBox>> problem_outputs {};
+    std::vector<Component<Dropdown>> dropdowns {};
 
     // Contains indicies into processor->in_ports for each problem input
     std::vector<std::vector<std::size_t>> inputport_map;
@@ -40,17 +41,17 @@ private:
     // Contains indicies into processor->out_ports for each problem output
     std::vector<std::vector<std::size_t>> oututport_map;
 
-    std::vector<bool> register_state {};
-    std::vector<TextBox> registers {};
+    std::vector<Component<TextBox>> registers {};
 
-    std::vector<TextBox> in_ports {};
-    std::vector<TextBox> out_ports {};
+    std::vector<Component<TextBox>> in_ports {};
+    std::vector<Component<TextBox>> out_ports {};
 
-    TextBox flags {};
-    TextBox ticks {};
+    Component<TextBox> flags {};
+    Component<TextBox> ticks {};
 
-    Button step {};
-    Button run {};
+    Component<Button> run {};
+
+    Components comps {};
 };
 
 #endif

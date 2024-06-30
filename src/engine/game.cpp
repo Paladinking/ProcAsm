@@ -1,4 +1,5 @@
 #include "game.h"
+#include "style.h"
 #include "log.h"
 #include <utility>
 
@@ -154,7 +155,7 @@ void StateGame::init() {
 }
 
 void StateGame::render() { 
-    SDL_SetRenderDrawColor(gRenderer, 0x20, 0x20, 0x20, 0xff);
+    SDL_SetRenderDrawColor(gRenderer, UI_BACKGROUND_COLOR);
     SDL_RenderClear(gRenderer);
     states.top()->render();
 

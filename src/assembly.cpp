@@ -132,7 +132,7 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
         return;
     }
 
-    box.tick(delta, mouse_down);
+    box.tick(delta);
     if (processor.is_running()) {
         ticks_passed += delta;
         while (ticks_passed > TICK_DELAY) {
@@ -145,10 +145,9 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
 }
 
 void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {
-    if (mouse == SDL_BUTTON_LEFT && mouse_down) {
-        mouse_down = false;
+    if (mouse == SDL_BUTTON_LEFT) {
         processor_gui.mouse_change(false);
-        if (!box.is_pressed(window_state->mouseX, window_state->mouseY)) {
+        if (!box.is_pressed(window_state->mouseX, window_state->mouseY) && mouse_down) {
             box.unselect();
             SDL_StopTextInput();
             if (!processor.is_valid()) {
@@ -158,6 +157,7 @@ void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {
                 box.set_errors(errors);
             }
         }
+        mouse_down = false;
     }
 }
 
@@ -165,13 +165,13 @@ void GameState::handle_down(const SDL_Keycode key, const Uint8 mouse) {
     if (key == SDLK_ESCAPE) {
         should_exit = true;
     } else if (mouse == SDL_BUTTON_LEFT) {
-        mouse_down = true;
         processor_gui.mouse_change(true);
         if (box.is_pressed(window_state->mouseX, window_state->mouseY)) {
             SDL_StartTextInput();
             box.select();
             processor.invalidate();
         } else {
+            mouse_down = true;
             box.unselect();
             SDL_StopTextInput();
         }

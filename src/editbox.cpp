@@ -1,5 +1,6 @@
 #include "editbox.h"
 #include "config.h"
+#include "engine/style.h"
 #include "engine/log.h"
 
 bool valid_char(unsigned char c) { return c >= 0x20 && c <= 0xef; }
@@ -43,8 +44,8 @@ void Editbox::input_char(char c) {
     }
 }
 
-void Editbox::tick(Uint64 passed, bool mouse_down) {
-    if (mouse_down && box_selected) {
+void Editbox::tick(Uint64 passed) {
+    if ((window_state->mouse_mask & SDL_BUTTON_LMASK) && box_selected) {
         TextPosition pos = find_pos(window_state->mouseX, window_state->mouseY);
         lines.move_cursor(pos, true);
     }
@@ -119,8 +120,8 @@ void Editbox::set_errors(std::vector<ErrorMsg> msgs) {
     for (const auto& error: msgs) {
         error_msg.emplace_back(- 8 - BOX_TEXT_MARGIN, BOX_TEXT_MARGIN + error.pos.row * BOX_LINE_HEIGHT,
                                8, BOX_LINE_HEIGHT, error.msg, *window_state);
-        error_msg.back().set_text_color(0xf0, 0x0, 0x0, 0xff);
         error_msg.back().set_align(Alignment::RIGHT);
+        error_msg.back().set_text_color(0xf0, 0, 0, 0xff);
     }
 }
 
@@ -300,9 +301,13 @@ void Editbox::handle_keypress(SDL_Keycode key) {
 }
 
 void Editbox::render() {
-    SDL_SetRenderDrawColor(gRenderer, 0xf0, 0xf0, 0xf0, 0xff);
+    SDL_SetRenderDrawColor(gRenderer, UI_BORDER_COLOR);
     SDL_Rect rect = {x, y, BOX_SIZE, BOX_SIZE};
-    SDL_RenderDrawRect(gRenderer, &rect);
+    SDL_RenderFillRect(gRenderer, &rect);
+    SDL_SetRenderDrawColor(gRenderer, UI_BACKGROUND_COLOR);
+    rect = {rect.x + 2, rect.y + 2, rect.w - 4, rect.h - 4};
+    SDL_RenderFillRect(gRenderer, &rect);
+
 
     if (lines.has_selection()) {
         SDL_SetRenderDrawColor(gRenderer, 0x50, 0x50, 0x50, 0xff);
@@ -371,7 +376,6 @@ void Editbox::change_callback(TextPosition start, TextPosition end,
         for (int i = boxes.size(); i < lines.line_count(); ++i) {
             boxes.emplace_back(0, 0 + BOX_LINE_HEIGHT * i, BOX_SIZE - 2 * BOX_TEXT_MARGIN, BOX_LINE_HEIGHT, "", *window_state);
             boxes.back().set_align(Alignment::LEFT);
-            boxes.back().set_text_color(0xf0, 0xf0, 0xf0, 0xff);
         }
     } else if (boxes.size() > lines.line_count()) {
         boxes.resize(lines.line_count());

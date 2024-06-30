@@ -25,7 +25,7 @@ public:
 
     void set_dpi_scale(double dpi);
 
-    void tick(Uint64 passed, bool mouse_down);
+    void tick(Uint64 passed);
 
     [[nodiscard]] bool is_pressed(int mouse_x, int mouse_y) const;
 

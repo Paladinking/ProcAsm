@@ -1,24 +1,26 @@
 #ifndef UI_00_H
 #define UI_00_H
 #include "game.h"
-#include "input.h"
-#include <SDL.h>
+#include "log.h"
 #include <SDL_ttf.h>
-#include <memory>
 #include <string>
+#include <tuple>
+#include <memory>
 #include <vector>
 
-enum class Alignment {
-    LEFT, CENTRE, RIGHT
-};
+enum class Alignment { LEFT, CENTRE, RIGHT };
 
+class TextBox;
+class Button;
 class Dropdown;
+class Components;
 
 class TextBox {
 public:
     TextBox() = default;
 
-    TextBox(int x, int y, int w, int h, const std::string &text,
+    TextBox(SDL_Rect rect, std::string text, const WindowState& ws);
+    TextBox(int x, int y, int w, int h, std::string text,
             const WindowState &window_state);
 
     TextBox(int x, int y, int w, int h, std::string text, int font_size,
@@ -57,7 +59,7 @@ public:
     /**
      * Sets horizontal alignment of the text.
      */
-     void set_align(Alignment alignment);
+    void set_align(Alignment alignment);
 
     /**
      * Gets the color of the text;
@@ -67,8 +69,8 @@ public:
     /**
      * Renders the textbox.
      */
-    virtual void render(int x_offset, int y_offset,
-                        const WindowState &window_state) const;
+    void render(int x_offset, int y_offset,
+                const WindowState &window_state) const;
 
     /**
      * Initializes the button class, loading the font used for the button text.
@@ -79,6 +81,7 @@ public:
 
 protected:
     friend class Dropdown;
+    friend class Button;
 
     int x{}, y{}, w{}, h{};
 
@@ -93,7 +96,6 @@ protected:
     double dpi_ratio{};
 
 private:
-
     Texture texture;
 
     SDL_Color color = {0, 0, 0, 0};
@@ -109,7 +111,25 @@ private:
     static TTF_Font *font;
 };
 
-class Button : public TextBox {
+class Border {
+public:
+    Border() = default;
+
+    Border(SDL_Rect rect, int stroke);
+    Border(int x, int y, int w, int h, int stroke);
+
+    void render(int x_offset, int y_offset) const;
+
+    void set_border_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+
+private:
+    uint8_t r{}, g{}, b{}, a{};
+
+    SDL_Rect rect;
+    int border_width;
+};
+
+class Button {
 public:
     /**
      * Default initialization
@@ -120,23 +140,15 @@ public:
      * Constructs a button with given size and text positioned at given
      * location.
      */
-    Button(const int x, const int y, const int w, const int h,
-           const std::string &text, const WindowState &window_state)
-        : TextBox(x, y, w, h, text, window_state){};
-    Button(const int x, const int y, const int w, const int h,
-           const std::string &text, const int font_size,
-           const WindowState &window_state)
-        : TextBox(x, y, w, h, text, font_size, window_state){};
+    Button(SDL_Rect dims, std::string text, WindowState& ws);
+    Button(int x, int y, int w, int h, std::string text, WindowState &ws);
+    Button(int x, int y, int w, int h, std::string text, int font_size,
+           WindowState &ws);
 
     /**
      * Returns true if the button contains the point (mouseX, mousey).
      */
     [[nodiscard]] bool is_pressed(int mouseX, int mouseY) const;
-
-    /**
-     * Sets the hover state of this button.
-     */
-    void set_hover(bool hover);
 
     /**
      * Hides or shows the border of this button.
@@ -146,17 +158,36 @@ public:
     /**
      * Handles press logic on a mouse event. Returns true when pressed.
      */
-    bool handle_press(int mouseX, int mouseY, bool down);
+    bool handle_press(WindowState &ws, int x_offset, int y_offset, bool down);
 
     /**
      * Renders the button.
      */
     void render(int x_offset, int y_offset,
-                const WindowState &window_state) const override;
+                const WindowState &window_state) const;
+
+    void set_dpi_ratio(double ration);
+
+    void set_text(const std::string &text);
+
+    const std::string &get_text() const;
+
+    void set_text_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+
+    int get_event() const;
 
 private:
+    Button(SDL_Rect rect, std::string text, const WindowState &ws, void*);
+
+    bool handle_press(int x, int y, bool press);
+
+    friend class Dropdown;
+
+    int event = -1;
+
+    TextBox text;
+
     bool border = true;
-    bool hover = false;
     bool down = false;
 };
 
@@ -164,21 +195,30 @@ class Dropdown {
 public:
     Dropdown() = default;
 
-    Dropdown(int x, int y, int w, int h, const std::string& text, const std::vector<std::string>& choices, const WindowState& window_state);
+    Dropdown(SDL_Rect dims, std::string text, const std::vector<std::string> &choices, WindowState& ws);
+
+    Dropdown(int x, int y, int w, int h, std::string text,
+             const std::vector<std::string> &choices,
+             WindowState &window_state);
 
     void clear_choice();
 
     int get_choice() const;
 
-    void render(int x_offset, int y_offset, const WindowState& window_state) const;
+    void render(int x_offset, int y_offset,
+                const WindowState &window_state) const;
 
-    int handle_press(int mouseX, int mouseY, bool down);
+    int handle_press(WindowState &window_state, int x_offset, int y_offset,
+                     bool down);
 
     void set_text_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
     void set_dpi_ratio(double dpi);
 
-    void set_choices(const std::vector<std::string>& choices, const WindowState& window_state);
+    void set_choices(const std::vector<std::string> &choices,
+                     const WindowState &window_state);
+
+    int get_event() const;
 
 private:
     bool show_list = false;
@@ -186,64 +226,118 @@ private:
     int max_w, max_h;
 
     int ix;
+    int event = -1;
 
     std::string default_value;
-    
+
     Button base;
 
-    std::vector<Button> choices {};
+    std::vector<Button> choices{};
 };
 
-class Menu : public State {
+template<class C>
+class Component {
 public:
-    Menu();
+    Component() {}
 
-    explicit Menu(const std::string &exit_input);
+    C& operator*();
 
-    /**
-     * Handles a down-event of keyboard or mouse.
-     */
-    void handle_down(SDL_Keycode key, Uint8 mouse) override;
+    C* operator->();
+private:
+    Component(Components* comps, std::size_t ix) : comps{comps}, ix(ix) {}
 
-    /**
-     * Handles an up-event of keyboard or mouse.
-     */
-    void handle_up(SDL_Keycode key, Uint8 mouse) override;
+    friend class Components;
+    Components* comps;
+    int ix;
+};
 
-    /**
-     * Renders the full menu.
-     */
-    void render() override;
+class Components {
+    template<class C>
+    friend class Component;
+public:
+    void set_window_state(WindowState* window_state) {
+        this->window_state = window_state;
+    }
 
-    /**
-     * Ticks the menu, deciding if to switch state.
-     */
-    void tick(Uint64 delta, StateStatus &res) override;
+    void set_dpi(double dpi_scale) {
+        for (auto &text: std::get<1>(comps)) {
+            text.set_dpi_ratio(dpi_scale);
+        }
+        for (auto &btn: std::get<2>(comps)) {
+            btn.set_dpi_ratio(dpi_scale);
+        }
+        for (auto &dropdown: std::get<3>(comps)) {
+            dropdown.set_dpi_ratio(dpi_scale);
+        }
+    }
 
-protected:
-    std::vector<Button> buttons;
-    std::vector<TextBox> text;
+    void render(int x_offset, int y_offset) const {
+        for (auto &border: std::get<0>(comps)) {
+            border.render(x_offset, y_offset);
+        }
+        for (auto &text: std::get<1>(comps)) {
+            text.render(x_offset, y_offset, *window_state);
+        }
+        for (auto &btn: std::get<2>(comps)) {
+            btn.render(x_offset, y_offset, *window_state);
+        }
+        for (auto &dropdown : std::get<3>(comps)) {
+            dropdown.render(x_offset, y_offset, *window_state);
+        }
+    }
 
-    // Set by subclasses to swap state
-    StateStatus next_res;
+    void handle_press(int x_offset, int y_offset, bool press) {
+        for (auto &btn : std::get<2>(comps)) {
+            btn.handle_press(*window_state, x_offset, y_offset, press);
+        }
+        for (auto &dropdown : std::get<3>(comps)) {
+            dropdown.handle_press(*window_state, x_offset, y_offset, press);
+        }
+    }
 
-    /**
-     * Called when a button is pressed.
-     * The int btn will contain the index of the button in the buttons vector.
-     */
-    virtual void button_press(int btn) = 0;
+    template <class C>
+    Component<C> add(C&& comp) {
+        auto& vec = std::get<std::vector<C>>(comps);
+        vec.push_back(std::move(comp));
+        return {this, vec.size() - 1};
+    }
 
-    /**
-     * Called when the Menu_exit input is recieved (Typicly Escape).
-     * This function allows most menu subclasses not to override handle_down or
-     * handle_up.
-     */
-    virtual void menu_exit();
+    template<class C, class... Args>
+    Component<C> add(C&& comp, void(*cb)(Args...), Args... args) {
+        auto& vec = std::get<std::vector<C>>(comps);
+        vec.push_back(std::move(comp));
+        window_state->events.register_callback(vec.back().get_event(), cb, args...);
+        return {this, vec.size() - 1};
+    }
+
+    template<class C, class...Args>
+    Component<C> add(C&& comp, void(*cb)(int64_t data, Args...), Args... args) {
+        auto& vec = std::get<std::vector<C>>(comps);
+        vec.push_back(std::move(comp));
+        window_state->events.register_callback(vec.back().get_event(), cb, args...);
+        return {this, vec.size() - 1};
+    }
 
 private:
-    int targeted_button = 0;
+    WindowState* window_state = nullptr;
 
-    std::unique_ptr<PressInput> exit_input;
+    struct TaggedPtrBase {
+        virtual ~TaggedPtrBase() = default;
+    };
+
+    std::tuple<std::vector<Border>, std::vector<TextBox>, std::vector<Button>,
+               std::vector<Dropdown>>
+        comps{};
 };
+
+template<class C>
+C& Component<C>::operator*() {
+    return std::get<std::vector<C>>(comps->comps)[ix];
+}
+
+template<class C>
+C* Component<C>::operator->() {
+    return &std::get<std::vector<C>>(comps->comps)[ix];
+}
 
 #endif

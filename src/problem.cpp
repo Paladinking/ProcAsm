@@ -3,6 +3,7 @@
 ByteProblem::ByteProblem() {
     // TODO: fix memory leak
     input_ports.push_back(new BlockingBytePort<uint8_t>{"1"});
+    input_ports.push_back(new BlockingBytePort<uint8_t>{"2"});
     output_ports.push_back(new BlockingBytePort<uint8_t>{"2"});
 }
 
