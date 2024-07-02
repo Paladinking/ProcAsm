@@ -1,7 +1,11 @@
 #include "events.h"
 
+Events::Events() noexcept : events{{EventType::UNIFIED}} {
+
+}
+
 int Events::register_event(EventType type, int id, int vector_size) {
-    if (id < 0) {
+    if (id <= 0) {
         id = events.size();
     }
     if (id >= events.size()) {
@@ -23,24 +27,6 @@ int Events::register_event(EventType type, int id, int vector_size) {
 
 void Events::register_callback(int id, void(*callback)(EventInfo, void*), void* aux)  {
     events[id].callbacks.push_back({callback, aux});
-}
-
-void Events::notify_event(int id, uint64_t u) {
-    EventInfo data;
-    data.u = u;
-    notify_event(id, data);
-}
-
-void Events::notify_event(int id, int64_t i) {
-    EventInfo data;
-    data.i = i;
-    notify_event(id, data);
-}
-
-void Events::notify_event(int id, void* ptr) {
-    EventInfo data;
-    data.ptr = ptr;
-    notify_event(id, data);
 }
 
 void Events::notify_event(int id, EventInfo data) {
@@ -65,31 +51,31 @@ void Events::notify_event(int id, EventInfo data) {
 }
 
 void Events::handle_events() {
-    for (auto& event: events) {
-        if (event.type == EventType::UNIFIED && event.triggered) {
-            for (auto& cb: event.callbacks) {
-                cb.callback(event.data, cb.aux);
+    for (auto event = events.begin() + 1; event != events.end(); ++event) {
+        if (event->type == EventType::UNIFIED && event->triggered) {
+            for (auto& cb: event->callbacks) {
+                cb.callback(event->data, cb.aux);
             }
-            event.triggered = false;
-        } else if (event.type == EventType::DELAYED) {
-            for (EventInfo data: event.buffer) {
-                for (auto& cb: event.callbacks) {
+            event->triggered = false;
+        } else if (event->type == EventType::DELAYED) {
+            for (EventInfo data: event->buffer) {
+                for (auto& cb: event->callbacks) {
                     cb.callback(data, cb.aux);
                 }
             }
-            event.buffer.clear();
-        } else if (event.type == EventType::UNIFIED_VEC && event.triggered) {
-            for (uint64_t i = 0; i < event.buffer.size(); ++i) {
-                if (event.buffer[i].u != 0) {
-                    event.buffer[i].u = 0;
+            event->buffer.clear();
+        } else if (event->type == EventType::UNIFIED_VEC && event->triggered) {
+            for (uint64_t i = 0; i < event->buffer.size(); ++i) {
+                if (event->buffer[i].u != 0) {
+                    event->buffer[i].u = 0;
                     EventInfo data;
                     data.u = i;
-                    for (auto& cb: event.callbacks) {
+                    for (auto& cb: event->callbacks) {
                         cb.callback(data, cb.aux);
                     }
                 }
             }
-            event.triggered = false;
+            event->triggered = false;
         }
     }
 }

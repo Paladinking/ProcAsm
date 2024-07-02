@@ -53,7 +53,6 @@ void Processor::clock_tick() {
                 ++pc;
                 zero_flag = gen_registers[reg] == 0;
                 events->notify_event(EventId::REGISTER_CHANGED, reg);
-                events->notify_event(EventId::IN_PORT_CHANGED, port);
             }
             break;
         }
@@ -63,7 +62,6 @@ void Processor::clock_tick() {
             if (out_ports[port].has_space()) {
                 out_ports[port].push_data(gen_registers[reg]);
                 ++pc;
-                events->notify_event(EventId::OUT_PORT_CHANGED, port);
             }
             break;
         }
@@ -127,9 +125,13 @@ void Processor::register_events(Events* events) {
     this->events = events;
     events->register_event(EventType::UNIFIED_VEC, EventId::REGISTER_CHANGED, MAX_REGISTERS);
     events->register_event(EventType::UNIFIED, EventId::TICKS_CHANGED);
-    events->register_event(EventType::UNIFIED_VEC, EventId::IN_PORT_CHANGED, MAX_PORTS);
-    events->register_event(EventType::UNIFIED_VEC, EventId::OUT_PORT_CHANGED, MAX_PORTS);
     events->register_event(EventType::UNIFIED, EventId::RUNNING_CHANGED);
+    for (auto& port: in_ports) {
+        port.register_event(events);
+    }
+    for (auto& port: out_ports) {
+        port.register_event(events);
+    }
 }
 
 bool Processor::is_valid() const noexcept {
@@ -146,9 +148,11 @@ void Processor::reset() {
     ticks = 0;
     zero_flag = false;
 
-    for (uint64_t i = 0; i < in_ports.size(); ++i) {
-        in_ports[i].flush_input();
-        events->notify_event(EventId::IN_PORT_CHANGED, i);
+    for (auto& port: in_ports) {
+        port.flush_input();
+    }
+    for (auto& port: out_ports) {
+        port.flush_input();
     }
     pc = 0;
     events->notify_event(EventId::RUNNING_CHANGED, static_cast<uint64_t>(0));
@@ -158,23 +162,5 @@ void Processor::invalidate() {
     valid = false;
     running = false;
     events->notify_event(EventId::RUNNING_CHANGED, static_cast<uint64_t>(1));
-}
-
-std::vector<InPort*> Processor::get_inputs() {
-    std::vector<InPort*> res {};
-    res.resize(in_ports.size());
-    for (std::size_t i = 0; i < in_ports.size(); ++i) {
-        res[i] = &in_ports[i];
-    }
-    return res;
-}
-
-std::vector<OutPort*> Processor::get_outputs() {
-    std::vector<OutPort*> res {};
-    res.resize(out_ports.size());
-    for (std::size_t i = 0; i < out_ports.size(); ++i) {
-        res[i] = &out_ports[i];
-    }
-    return res;
 }
 

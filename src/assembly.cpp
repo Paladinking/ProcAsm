@@ -11,7 +11,7 @@ void GameState::set_font_size() {
                                               window_state->screen_width,
                                           static_cast<double>(window_state->window_height) /
                                               window_state->screen_height);
-    if (new_dpi_scale == dpi_scale) {
+    if (new_dpi_scale < dpi_scale) {
         return;
     }
     LOG_DEBUG("Recalculating font size");
@@ -113,9 +113,9 @@ void GameState::init(WindowState *window_state) {
 }
 
 void GameState::render() {
+    box.render();
     processor_gui.render();
 
-    box.render();
 }
 void GameState::tick(const Uint64 delta, StateStatus &res) {
     if (should_exit) {
@@ -136,12 +136,12 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
     if (processor.is_running()) {
         ticks_passed += delta;
         while (ticks_passed > TICK_DELAY) {
-            problem.clock_tick();
+            problem.clock_tick_output();
             processor.clock_tick();
+            problem.clock_tick_input();
             ticks_passed -= TICK_DELAY;
         }
     }
-        //processor.clock_tick();
 }
 
 void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {

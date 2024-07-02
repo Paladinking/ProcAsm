@@ -36,18 +36,14 @@ public:
     void invalidate();
 
     void reset();
-
-    std::vector<InPort*> get_inputs();
-
-    std::vector<OutPort*> get_outputs();
 private:
     friend class ProcessorGui;
 
     bool valid = false;
     bool running = false;
 
-    std::vector<ForwardingInputPort<uint8_t>> in_ports {{"A"}, {"B"}};
-    std::vector<ForwardingOutputPort<uint8_t>> out_ports {{"Z"}};
+    std::vector<BlockingBytePort<uint8_t>> in_ports {{"A"}, {"B"}};
+    std::vector<BlockingBytePort<uint8_t>> out_ports {{"Z"}};
     std::vector<Instruction> instructions {};
 
     std::uint32_t pc;

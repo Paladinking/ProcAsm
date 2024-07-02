@@ -5,6 +5,8 @@
 #include <tuple>
 #include <vector>
 
+constexpr int NULL_EVENT = 0;
+
 enum class EventType {
     IMMEDIATE,  // Event triggers callaback instantly
     DELAYED,    // Event triggers callback after tick
@@ -21,16 +23,52 @@ union EventInfo {
 
     template <> uint64_t get() { return u; }
 
+    template <> uint32_t get() { return static_cast<uint32_t>(u); }
+
+    template <> uint16_t get() { return static_cast<uint16_t>(u); }
+
+    template <> uint8_t get() { return static_cast<uint8_t>(u); }
+
     template <> int64_t get() { return i; }
+
+    template <> int32_t get() { return static_cast<int32_t>(i); }
+
+    template <> int16_t get() { return static_cast<int16_t>(i); }
+
+    template <> int8_t get() { return static_cast<int8_t>(i); }
+
+    template <class T> void set(T t) { set_helper<T>(t); }
+
+    template <> void set(uint64_t t) { u = t; }
+
+    template <> void set(uint32_t t) { u = t; }
+    
+    template <> void set(uint16_t t) { u = t; }
+    
+    template <> void set(uint8_t t) { u = t; }
+
+    template <> void set(int64_t t) { i = t; }
+
+    template <> void set(int32_t t) { i = t; }
+    
+    template <> void set(int16_t t) { i = t; }
+    
+    template <> void set(int8_t t) { i = t; }
 
 private:
     template <class T, T = nullptr> T get_helper() {
         return reinterpret_cast<T>(ptr);
     }
+
+    template <class T, T = nullptr> void set_helper(T t) {
+        ptr = t;
+    }
 };
 
 class Events {
 public:
+    Events() noexcept;
+
     int register_event(EventType type, int id, int vector_size = -1);
 
     void register_callback(int id, void (*callback)(EventInfo, void *),
@@ -68,10 +106,14 @@ public:
         register_callback(id, call, aux_data.back().get());
     }
 
+    template<class T>
+    void notify_event(int id, T t) {
+        EventInfo info;
+        info.set<T>(t);
+        notify_event(id, info);
+    }
+
     void notify_event(int id, EventInfo data);
-    void notify_event(int id, uint64_t u);
-    void notify_event(int id, int64_t i);
-    void notify_event(int id, void *ptr);
 
     void handle_events();
 

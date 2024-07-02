@@ -4,11 +4,9 @@
 
 namespace EventId {
 
-    constexpr int REGISTER_CHANGED = 0;
-    constexpr int TICKS_CHANGED = 1;
-    constexpr int IN_PORT_CHANGED = 2;
-    constexpr int OUT_PORT_CHANGED = 3;
-    constexpr int RUNNING_CHANGED = 4;
+    constexpr int REGISTER_CHANGED = 1;
+    constexpr int TICKS_CHANGED = 2;
+    constexpr int RUNNING_CHANGED = 3;
 
 }
 #endif

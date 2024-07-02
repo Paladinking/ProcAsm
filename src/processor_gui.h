@@ -21,8 +21,6 @@ public:
     void mouse_change(bool press);
 
 private:
-    void on_input_dropdown(uint64_t ix, uint64_t val);
-
     Processor* processor {nullptr};
     ByteProblem* problem {nullptr};
 
@@ -39,7 +37,7 @@ private:
     std::vector<std::vector<std::size_t>> inputport_map;
 
     // Contains indicies into processor->out_ports for each problem output
-    std::vector<std::vector<std::size_t>> oututport_map;
+    std::vector<std::vector<std::size_t>> outputport_map;
 
     std::vector<Component<TextBox>> registers {};
 

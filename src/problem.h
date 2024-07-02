@@ -17,21 +17,29 @@ public:
 
     void register_events(Events* events);
 
-    OutBytePort<uint8_t>* get_input_port(int ix);
+    ForwardingOutputPort<uint8_t>* get_input_port(std::size_t ix);
 
-    InBytePort<uint8_t>* get_output_port(int ix);
+    ForwardingInputPort<uint8_t>* get_output_port(std::size_t ix);
 
-    void clock_tick();
+    void clock_tick_input();
 
-    void on_processor_change();
+    void clock_tick_output();
 
+    bool poll_input(std::size_t ix, uint8_t& val) const;
+
+    bool poll_output(std::size_t ix, uint8_t& val) const;
 private:
     friend class ProcessorGui;
 
     std::size_t ix = 0;
 
-    std::vector<OutBytePort<uint8_t>*> input_ports;
-    std::vector<InBytePort<uint8_t>*> output_ports;
+    int16_t last_output;
+
+    std::vector<ForwardingOutputPort<uint8_t>> input_ports;
+    std::vector<ForwardingInputPort<uint8_t>> output_ports;
+
+    int input_event;
+    int output_event;
 
     Events* events;
 };
