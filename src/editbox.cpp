@@ -118,7 +118,7 @@ void Editbox::set_text(std::string& text) {
 void Editbox::set_errors(std::vector<ErrorMsg> msgs) {
     error_msg.clear();
     for (const auto& error: msgs) {
-        error_msg.emplace_back(- 8 - BOX_TEXT_MARGIN, BOX_TEXT_MARGIN + error.pos.row * BOX_LINE_HEIGHT,
+        error_msg.emplace_back(- 8 - BOX_TEXT_MARGIN, BOX_TEXT_MARGIN + static_cast<int>(error.pos.row) * BOX_LINE_HEIGHT,
                                8, BOX_LINE_HEIGHT, error.msg, *window_state);
         error_msg.back().set_align(Alignment::RIGHT);
         error_msg.back().set_text_color(0xf0, 0, 0, 0xff);
@@ -323,7 +323,7 @@ void Editbox::render() {
         }
         int col = lines.get_selection_end().col;
         SDL_Rect r = {x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * start,
-                      y + BOX_LINE_HEIGHT * lines.get_selection_end().row + BOX_TEXT_MARGIN,
+                      static_cast<int>(y + BOX_LINE_HEIGHT * lines.get_selection_end().row + BOX_TEXT_MARGIN),
                       BOX_CHAR_WIDTH * (col - start),
                       BOX_LINE_HEIGHT};
         SDL_RenderFillRect(gRenderer, &r);
@@ -364,7 +364,7 @@ bool Editbox::is_pressed(int mouse_x, int mouse_y) const {
     return mouse_x > x && mouse_x < x + BOX_SIZE && mouse_y > y && mouse_y < y + BOX_SIZE;
 }
 void Editbox::change_callback(TextPosition start, TextPosition end,
-                              int removed) {
+        int64_t removed) {
     max_col = lines.get_cursor_pos().col;
     if (boxes.size() == lines.line_count()) {
         for (int i = start.row; i <= end.row; ++i) {
@@ -380,14 +380,14 @@ void Editbox::change_callback(TextPosition start, TextPosition end,
     } else if (boxes.size() > lines.line_count()) {
         boxes.resize(lines.line_count());
     }
-    for (int i = start.row; i < lines.line_count(); ++i) {
+    for (int64_t i = start.row; i < lines.line_count(); ++i) {
         if (lines.get_lines()[i] != boxes[i].get_text()) {
             boxes[i].set_text(lines.get_lines()[i]);
         }
     }
 }
 
-void change_callback(TextPosition start, TextPosition end, int removed, void* aux) {
+void change_callback(TextPosition start, TextPosition end, int64_t removed, void* aux) {
     static_cast<Editbox*>(aux)->change_callback(start, end, removed);
 }
 

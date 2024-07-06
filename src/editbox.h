@@ -8,7 +8,7 @@
 #include "compiler.h"
 #include <vector>
 
-void change_callback(TextPosition start, TextPosition end, int size, void* box);
+void change_callback(TextPosition start, TextPosition end, int64_t size, void* box);
 
 class Editbox {
 public:
@@ -43,8 +43,8 @@ public:
 
     void set_errors(std::vector<ErrorMsg> msgs);
 private:
-    friend void change_callback(TextPosition, TextPosition, int, void*);
-    void change_callback(TextPosition start, TextPosition end, int removed);
+    friend void change_callback(TextPosition, TextPosition, int64_t, void*);
+    void change_callback(TextPosition start, TextPosition end, int64_t removed);
 
     TextPosition find_pos(int mouse_x, int mouse_y) const;
 
@@ -52,7 +52,7 @@ private:
 
     int x{}, y{};
 
-    int max_col {0};
+    int64_t max_col {0};
     bool insert_mode {false};
 
     bool box_selected {false};

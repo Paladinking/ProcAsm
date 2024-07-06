@@ -7,7 +7,7 @@
  * Struct for storing and comparing a row-collum position in the text.
  **/
 struct TextPosition {
-    int row, col;
+    int64_t row, col;
 
     bool operator<(const TextPosition& other) const;
     bool operator>(const TextPosition& other) const;
@@ -94,7 +94,7 @@ public:
      * @param change_callback callback called whenever a change is made.
      * @param aux extra data to pass the to the callback.
      **/
-    EditLines(int max_rows, int max_cols, void (*change_callback)(TextPosition start, TextPosition end, int removed, void*), void* aux);
+    EditLines(int64_t max_rows, int64_t max_cols, void (*change_callback)(TextPosition start, TextPosition end, int64_t removed, void*), void* aux);
 
     /**
      * Moves the given position to the left by off, wrapping at line ends.
@@ -104,7 +104,7 @@ public:
      * @param off the number of steps to move.
      * @returns true if a move was done, false otherwise.
      **/
-    bool move_left(TextPosition &pos, int off) const;
+    bool move_left(TextPosition &pos, int64_t off) const;
 
     /**
      * Moves the given position to the right by off, wrapping at line ends.
@@ -114,7 +114,7 @@ public:
      * @param off the number of steps to move.
      * @returns true if a move was done, false otherwise.
      **/
-    bool move_right(TextPosition &pos, int off) const;
+    bool move_right(TextPosition &pos, int64_t off) const;
 
     /**
      * Returns true if any text is selected.
@@ -229,7 +229,7 @@ public:
      *
      * @return the number of lines.
      **/
-    int line_count() const;
+    int64_t line_count() const;
 
     /**
      * Returns the number of character in line row, equal to
@@ -238,7 +238,7 @@ public:
      * @param row the row to get the size of.
      * @return the size of the row.
      **/
-    int line_size(int row) const;
+    int64_t line_size(int64_t row) const;
 
     /**
      * Returns the character at position pos.
@@ -272,7 +272,7 @@ private:
 
     std::vector<std::string> lines {};
 
-    void (*change_callback)(TextPosition start, TextPosition end, int removed, void*);
+    void (*change_callback)(TextPosition start, TextPosition end, int64_t removed, void*);
     void* aux_data;
 
     std::size_t max_rows, max_cols;

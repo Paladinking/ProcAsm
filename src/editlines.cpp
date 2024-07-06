@@ -57,14 +57,14 @@ EditAction EditStack::pop() {
     return res;
 }
 
-EditLines::EditLines(int max_rows, int max_cols, void (*change_callback)(TextPosition start, TextPosition end, int removed, void*), void* aux) : lines(1, ""),
-                                                   max_rows{static_cast<std::size_t>(max_rows == -1 ? INT_MAX : max_rows)},
-                                                   max_cols{static_cast<std::size_t>(max_cols == -1 ? INT_MAX : max_cols)},
+EditLines::EditLines(int64_t max_rows, int64_t max_cols, void (*change_callback)(TextPosition start, TextPosition end, int64_t removed, void*), void* aux) : lines(1, ""),
+                                                   max_rows{static_cast<std::size_t>(max_rows == -1 ? INT64_MAX : max_rows)},
+                                                   max_cols{static_cast<std::size_t>(max_cols == -1 ? INT64_MAX : max_cols)},
                                                    change_callback{change_callback},
                                                    aux_data{aux}{}
 
-int EditLines::line_size(int row) const {
-    return static_cast<int>(lines[row].size());
+int64_t EditLines::line_size(int64_t row) const {
+    return static_cast<int64_t>(lines[row].size());
 }
 
 void EditLines::delete_region(TextPosition start, TextPosition end) {
@@ -76,15 +76,15 @@ void EditLines::delete_region(TextPosition start, TextPosition end) {
     std::string last = lines[end.row];
     last.erase(0, end.col);
     lines[start.row] = first + last;
-    for (int ix = 0; ix < lines.size() - (end.row + 1); ++ix) {
+    for (int64_t ix = 0; ix < lines.size() - (end.row + 1); ++ix) {
         lines[start.row + ix + 1] = lines[end.row + 1 + ix];
     }
-    int rem_lines = static_cast<int>(lines.size()) - (end.row - start.row);
+    int64_t rem_lines = static_cast<int64_t>(lines.size()) - (end.row - start.row);
     lines.resize(rem_lines);
 }
 
 bool EditLines::insert_region(const std::string &str, TextPosition start, TextPosition end, EditAction &action) {
-    int new_rows = static_cast<int>(std::count(str.begin(), str.end(), '\n'));
+    int64_t new_rows = static_cast<int64_t>(std::count(str.begin(), str.end(), '\n'));
     if (lines.size() + new_rows - (end.row - start.row) > max_rows) {
         // Would add too many lines
         return false;
@@ -112,7 +112,7 @@ bool EditLines::insert_region(const std::string &str, TextPosition start, TextPo
         std::string s = lines[start.row];
         s.insert(start.col, str);
         lines[start.row] = s;
-        start.col += static_cast<int>(str.size());
+        start.col += static_cast<int64_t>(str.size());
         if (split_delete) {
             action = {start_pos, {start.row + 1, 0}, old};
         } else {
@@ -131,7 +131,7 @@ bool EditLines::insert_region(const std::string &str, TextPosition start, TextPo
         }
         std::string rem = str.substr(ix + 1, last_ix - ix);
         size_t offset = 0;
-        for (int i = 0; i < new_rows - 1; ++i) {
+        for (int64_t i = 0; i < new_rows - 1; ++i) {
             size_t pos = rem.find('\n', offset);
             if (pos - offset > max_cols) {
                 return false;
@@ -145,10 +145,10 @@ bool EditLines::insert_region(const std::string &str, TextPosition start, TextPo
         s.erase(start.col);
         lines[start.row] = (s + first);
         offset = 0;
-        for (int i = 1; i <= new_rows; ++i) {
+        for (int64_t i = 1; i <= new_rows; ++i) {
             lines.insert(lines.begin() + start.row + i, "");
         }
-        for (int i = 1; i < new_rows; ++i) {
+        for (int64_t i = 1; i < new_rows; ++i) {
             size_t pos = rem.find('\n', offset);
             lines[start.row + i] = (rem.substr(offset, pos - offset));
             offset = pos + 1;
@@ -156,13 +156,13 @@ bool EditLines::insert_region(const std::string &str, TextPosition start, TextPo
         TextPosition start_pos = start;
         lines[start.row + new_rows] = (last + end_str);
         start.row += new_rows;
-        start.col = static_cast<int>(last.size());
+        start.col = static_cast<int64_t>(last.size());
         action = {start_pos, start, old};
     }
     return true;
 }
 
-bool EditLines::move_left(TextPosition &pos, int off) const {
+bool EditLines::move_left(TextPosition &pos, int64_t off) const {
     TextPosition old = pos;
     while (pos.col - off < 0) {
         if (pos.row == 0) {
@@ -177,7 +177,7 @@ bool EditLines::move_left(TextPosition &pos, int off) const {
     return true;
 }
 
-bool EditLines::move_right(TextPosition &pos, int off) const {
+bool EditLines::move_right(TextPosition &pos, int64_t off) const {
     TextPosition old = pos;
     while (pos.col + off > line_size(pos.row)) {
         if (pos.row == lines.size() - 1) {
@@ -207,7 +207,7 @@ void EditLines::set_cursor(TextPosition pos, bool select) {
         pos.row = 0;
         pos.col = 0;
     } else if (pos.row >= lines.size()) {
-        pos.row = static_cast<int>(lines.size() - 1);
+        pos.row = static_cast<int64_t>(lines.size() - 1);
         pos.col = line_size(pos.row);
     } else if (pos.col > line_size(pos.row)) {
         pos.col = line_size(pos.row);
@@ -299,7 +299,7 @@ bool EditLines::insert_str(const std::string &str, EditType edit) {
     }
     edit_action = edit;
     if (change_callback != nullptr) {
-        change_callback(action.start, action.end, static_cast<int>(action.text.size()), aux_data);
+        change_callback(action.start, action.end, static_cast<int64_t>(action.text.size()), aux_data);
     }
     return true;
 }
@@ -316,7 +316,7 @@ std::string EditLines::extract_region(TextPosition start,
     } else {
         std::stringstream res{};
         res << lines[start.row].substr(start.col);
-        for (int row = start.row + 1; row < end.row; ++row) {
+        for (int64_t row = start.row + 1; row < end.row; ++row) {
             res << '\n' << lines[row];
         }
         res << '\n' << lines[end.row].substr(0, end.col);
@@ -347,8 +347,8 @@ void EditLines::undo_action(bool redo) {
     edit_action = EditType::NONE;
 }
 
-int EditLines::line_count() const {
-    return static_cast<int>(lines.size());
+int64_t EditLines::line_count() const {
+    return static_cast<int64_t>(lines.size());
 }
 
 char EditLines::char_at_pos(TextPosition pos) const {
@@ -421,6 +421,6 @@ int main() {
     ASSERT_EQ(lines.has_selection(), false)
 
 end:
-    std::cout << passed_tests << " / " << test_ix << " tests passed" << std::endl;
+std::cout << passed_tests << " / " << test_ix << " tests passed" << std::endl;
 }
 #endif
