@@ -5,7 +5,7 @@
 #include <SDL_ttf.h>
 #include <string>
 #include <tuple>
-#include <memory>
+#include <utility>
 #include <vector>
 
 enum class Alignment { LEFT, CENTRE, RIGHT };
@@ -111,12 +111,34 @@ private:
     static TTF_Font *font;
 };
 
-class Border {
+class Polygon {
 public:
-    Border() = default;
+    Polygon() = default;
 
-    Border(SDL_Rect rect, int stroke);
-    Border(int x, int y, int w, int h, int stroke);
+    Polygon(std::initializer_list<SDL_FPoint> points);
+
+    void render(int x_offset, int y_offset) const;
+
+    void set_points(std::initializer_list<SDL_FPoint> points);
+
+    void set_border_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+
+private:
+    SDL_Color color;
+
+    int x_offset = 0, y_offset = 0;
+
+    std::vector<SDL_Vertex> verticies{};
+};
+
+class Box {
+public:
+    Box() = default;
+
+    Box(SDL_Rect rect, int stroke);
+    Box(int x, int y, int w, int h, int stroke);
+    Box(SDL_Rect rect);
+    Box(int x, int y, int w, int h);
 
     void render(int x_offset, int y_offset) const;
 
@@ -127,6 +149,7 @@ private:
 
     SDL_Rect rect;
     int border_width;
+    bool filled{};
 };
 
 class Button {
@@ -254,19 +277,20 @@ private:
 class Components {
     template<class C>
     friend class Component;
+
 public:
     void set_window_state(WindowState* window_state) {
         this->window_state = window_state;
     }
 
     void set_dpi(double dpi_scale) {
-        for (auto &text: std::get<1>(comps)) {
+        for (auto &text: std::get<2>(comps)) {
             text.set_dpi_ratio(dpi_scale);
         }
-        for (auto &btn: std::get<2>(comps)) {
+        for (auto &btn: std::get<3>(comps)) {
             btn.set_dpi_ratio(dpi_scale);
         }
-        for (auto &dropdown: std::get<3>(comps)) {
+        for (auto &dropdown: std::get<4>(comps)) {
             dropdown.set_dpi_ratio(dpi_scale);
         }
     }
@@ -275,22 +299,25 @@ public:
         for (auto &border: std::get<0>(comps)) {
             border.render(x_offset, y_offset);
         }
-        for (auto &text: std::get<1>(comps)) {
+        for (auto &polygon: std::get<1>(comps)) {
+            polygon.render(x_offset, y_offset);
+        }
+        for (auto &text: std::get<2>(comps)) {
             text.render(x_offset, y_offset, *window_state);
         }
-        for (auto &btn: std::get<2>(comps)) {
+        for (auto &btn: std::get<3>(comps)) {
             btn.render(x_offset, y_offset, *window_state);
         }
-        for (auto &dropdown : std::get<3>(comps)) {
+        for (auto &dropdown : std::get<4>(comps)) {
             dropdown.render(x_offset, y_offset, *window_state);
         }
     }
 
     void handle_press(int x_offset, int y_offset, bool press) {
-        for (auto &btn : std::get<2>(comps)) {
+        for (auto &btn : std::get<3>(comps)) {
             btn.handle_press(*window_state, x_offset, y_offset, press);
         }
-        for (auto &dropdown : std::get<3>(comps)) {
+        for (auto &dropdown : std::get<4>(comps)) {
             dropdown.handle_press(*window_state, x_offset, y_offset, press);
         }
     }
@@ -325,7 +352,7 @@ private:
         virtual ~TaggedPtrBase() = default;
     };
 
-    std::tuple<std::vector<Border>, std::vector<TextBox>, std::vector<Button>,
+    std::tuple<std::vector<Box>, std::vector<Polygon>, std::vector<TextBox>, std::vector<Button>,
                std::vector<Dropdown>>
         comps{};
 };

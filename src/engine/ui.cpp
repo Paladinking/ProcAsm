@@ -131,17 +131,69 @@ void TextBox::render(const int x_offset, const int y_offset,
                              window_state.screen_height);
 }
 
-Border::Border(SDL_Rect rect, int stroke)
-    : Border(rect.x, rect.y, rect.w, rect.h, stroke) {}
+Polygon::Polygon(std::initializer_list<SDL_FPoint> points) {
+    verticies.reserve(points.size());
+    color = {UI_BORDER_COLOR};
+    for (auto p : points) {
+        SDL_Vertex ver{p, {color.r, color.g, color.b, color.a}, {0.0f, 0.0f}};
+        verticies.push_back(ver);
+    }
+}
 
-Border::Border(int x, int y, int w, int h, int stroke)
-    : rect{x, y, w, h}, border_width{stroke} {
+void Polygon::render(int x_offset, int y_offset) const {
+    auto* me = const_cast<Polygon*>(this);
+    if (x_offset != me->x_offset) {
+        for (auto& v: me->verticies) {
+            v.position.x = v.position.x - me->x_offset + x_offset;
+        }
+        me->x_offset = x_offset;
+    }
+    if (x_offset != me->y_offset) {
+        for (auto& v: me->verticies) {
+            v.position.y = v.position.y - me->y_offset + y_offset;
+        }
+        me->y_offset = y_offset;
+    }
+    SDL_RenderGeometry(gRenderer, nullptr, verticies.data(),
+                       verticies.size(), nullptr, 0);
+}
+
+void Polygon::set_points(std::initializer_list<SDL_FPoint> points) {
+    verticies.clear();
+    for (auto p : points) {
+        SDL_Vertex v = {{p.x + x_offset, p.y + y_offset}, color, {0.0f, 0.0f}};
+        verticies.push_back(v);
+    }
+}
+
+void Polygon::set_border_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    color = {r, g, b, a};
+    for (auto& v: verticies) {
+        v.color = {r, g, b, a};
+    }
+}
+
+Box::Box(SDL_Rect rect, int stroke)
+    : Box(rect.x, rect.y, rect.w, rect.h, stroke) {}
+
+Box::Box(int x, int y, int w, int h, int stroke)
+    : rect{x, y, w, h}, border_width{stroke}, filled{false} {
     set_border_color(UI_BORDER_COLOR);
 }
 
-void Border::render(int x_offset, int y_offset) const {
+Box::Box(SDL_Rect rect) : Box(rect.x, rect.y, rect.w, rect.h) {}
+
+Box::Box(int x, int y, int w, int h) : rect{x, y, w, h}, border_width{0}, filled{true} {
+    set_border_color(UI_BORDER_COLOR);
+}
+
+void Box::render(int x_offset, int y_offset) const {
     SDL_SetRenderDrawColor(gRenderer, r, g, b, a);
     SDL_Rect r = {rect.x + x_offset, rect.y + y_offset, rect.w, rect.h};
+    if (filled) {
+        SDL_RenderFillRect(gRenderer, &r);
+        return;
+    }
     SDL_RenderFillRect(gRenderer, &r);
     SDL_SetRenderDrawColor(gRenderer, UI_BACKGROUND_COLOR);
     r = {r.x + border_width, r.y + border_width,
@@ -149,7 +201,7 @@ void Border::render(int x_offset, int y_offset) const {
     SDL_RenderFillRect(gRenderer, &r);
 }
 
-void Border::set_border_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+void Box::set_border_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     this->r = r;
     this->g = g;
     this->b = b;

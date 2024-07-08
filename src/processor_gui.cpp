@@ -119,7 +119,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
         in_ports.push_back(box);
         box = comps.add(TextBox(30 + 110 * i, -50 + BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, s, *window_state));
         in_ports.push_back(box);
-        comps.add(Border(30 + 110 * i, -60, 80, 60, 2));
+        comps.add(Box(30 + 110 * i, -60, 80, 60, 2));
     }
     for (uint32_t i = 0; i < processor->out_ports.size(); ++i) {
         int event = processor->out_ports[i].get_event();
@@ -131,7 +131,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
         out_ports.push_back(box);
         box = comps.add(TextBox(30 + 110 * i, BOX_SIZE + 10 + BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, "", *window_state));
         out_ports.push_back(box);
-        comps.add(Border(30 + 110 * i, BOX_SIZE, 80, 60, 2));
+        comps.add(Box(30 + 110 * i, BOX_SIZE, 80, 60, 2));
     }
 
 
@@ -149,6 +149,16 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
             auto* p = &gui->processor->in_ports[port];
             auto* ptr = gui->problem->input_ports[ix].check_port(p);
             gui->problem->input_ports[ix].set_port(ptr);
+            gui->input_wires[ix]->set_points({
+                       {30 + 110.0f * ix, -140}, {70 + 110.0f * ix, -140}, {50 + 110.0f * port, -80},
+                       {70 + 110.0f * ix , -140}, {50 + 110.0f * port, -80}, {90 + 110.0f * port, -80},
+                       {30 + 110.0f * ix, -200}, {70 + 110.0f * ix, -200}, {30 + 110.0f * ix, -140},
+                       {70 + 110.0f * ix, -200}, {70 + 110.0f * ix, -140}, {30 + 110.0f * ix, -140},
+                       {50 + 110.0f * port, -80}, {90 + 110.0f * port, -80}, {50 + 110.0f * port, -60},
+                       {90 + 110.0f * port, -80}, {90 + 110.0f * port, -60}, {50 + 110.0f * port, -60}
+            });
+        } else {
+            gui->input_wires[ix]->set_points({});
         }
 
         Component<Dropdown>* dropdowns = gui->dropdowns.data();
@@ -160,6 +170,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
             std::size_t port_i = gui->inputport_map[i][select_i];
             if (port_i == port && i != ix) {
                 dropdowns[i]->clear_choice();
+                gui->input_wires[i]->set_points({});
                 continue;
             } 
             auto* p = &gui->processor->in_ports[port_i];
@@ -181,6 +192,17 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
             auto* p = &gui->processor->out_ports[port];
             auto* ptr = gui->problem->output_ports[ix].check_port(p);
             gui->problem->output_ports[ix].set_port(ptr);
+            LOG_DEBUG("%d, %d", ix, gui->output_wires.size());
+            gui->output_wires[ix]->set_points({
+                       {30 + 110.0f * ix, BOX_SIZE + 140}, {70 + 110.0f * ix, BOX_SIZE + 140}, {50 + 110.0f * port, BOX_SIZE + 80},
+                       {70 + 110.0f * ix, BOX_SIZE + 140}, {50 + 110.0f * port, BOX_SIZE + 80}, {90 + 110.0f * port, BOX_SIZE + 80},
+                       {30 + 110.0f * ix, BOX_SIZE + 140}, {70 + 110.0f * ix, BOX_SIZE + 140}, {30 + 110.0f * ix, BOX_SIZE + 200},
+                       {70 + 110.0f * ix, BOX_SIZE + 140}, {70 + 110.0f * ix, BOX_SIZE + 200}, {30 + 110.0f * ix, BOX_SIZE + 200},
+                       {50 + 110.0f * port, BOX_SIZE + 80}, {90 + 110.0f * port, BOX_SIZE + 80}, {50 + 110.0f * port, BOX_SIZE + 60},
+                       {90 + 110.0f * port, BOX_SIZE + 80}, {90 + 110.0f * port, BOX_SIZE + 60}, {50 + 110.0f * port, BOX_SIZE + 60}
+            });
+        } else {
+            gui->output_wires[ix]->set_points({});
         }
 
         Component<Dropdown>* dropdowns = gui->dropdowns.data() + gui->problem->input_ports.size();
@@ -208,6 +230,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
         problem_inputs.push_back(box);
         box = comps.add(TextBox(10 + 110 * i, -280 + 80 / 2, 80, BOX_LINE_HEIGHT, "None", *window_state));
         problem_inputs.push_back(box);
+        input_wires.emplace_back(comps.add(Polygon({})));
 
         inputport_map.emplace_back();
 
@@ -222,7 +245,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
         }
 
         dropdowns.push_back(comps.add(Dropdown(110 * i, -280 + 90, 100, 40, "Select - ", port_names, *window_state), on_in_dropdown, i, this));
-        comps.add(Border(10 + 110 * i, -280, 80, 80, 2));
+        comps.add(Box(10 + 110 * i, -280, 80, 80, 2));
     }
 
     for (int i = 0; i < problem->output_ports.size(); ++i) {
@@ -231,6 +254,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
         problem_outputs.push_back(box);
         box = comps.add(TextBox(10 + 100 * i, BOX_SIZE + 200 + 80 /2, 80, BOX_LINE_HEIGHT, "None", *window_state));
         problem_outputs.push_back(box);
+        output_wires.emplace_back(comps.add(Polygon({})));
 
         outputport_map.emplace_back();
 
@@ -245,10 +269,10 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
         }
 
         dropdowns.push_back(comps.add(Dropdown(110 * i, BOX_SIZE + 150, 100, 40, "Select - ", port_names, *window_state), on_out_dropdown, i, this));
-        comps.add(Border(10, BOX_SIZE + 200, 80, 80, 2));
+        comps.add(Box(10 + 110 * i, BOX_SIZE + 200, 80, 80, 2));
     }
 
-    comps.add(Border(BOX_SIZE - 120, 0, 120, 100, 2));
+    comps.add(Box(BOX_SIZE - 120, 0, 120, 100, 2));
 }
 
 void ProcessorGui::render() const {

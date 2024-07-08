@@ -33,6 +33,9 @@ private:
     std::vector<Component<TextBox>> problem_outputs {};
     std::vector<Component<Dropdown>> dropdowns {};
 
+    std::vector<Component<Polygon>> input_wires{};
+    std::vector<Component<Polygon>> output_wires{};
+
     // Contains indicies into processor->in_ports for each problem input
     std::vector<std::vector<std::size_t>> inputport_map;
 
