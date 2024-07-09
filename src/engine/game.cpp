@@ -1,6 +1,7 @@
 #include "game.h"
 #include "style.h"
 #include "log.h"
+#include "engine.h"
 #include <utility>
 
 SDL_Renderer *gRenderer;
@@ -106,7 +107,7 @@ void Game::run() {
 
         Uint64 cur_time = SDL_GetTicks64();
         this->tick(cur_time - last_time);
-        window_state.events.handle_events();
+        gEvents.handle_events();
         if (!running)
             break;
         last_time = cur_time;
@@ -179,6 +180,7 @@ void StateGame::tick(Uint64 delta) {
         break;
     case StateStatus::POP:
         states.pop();
+        LOG_DEBUG("Popped state");
         if (states.empty()) {
             exit_game();
         } else {

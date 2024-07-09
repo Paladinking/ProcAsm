@@ -1,6 +1,8 @@
 #ifndef UI_00_H
 #define UI_00_H
 #include "game.h"
+#include "engine.h"
+#include "texture.h"
 #include "log.h"
 #include <SDL_ttf.h>
 #include <string>
@@ -333,7 +335,7 @@ public:
     Component<C> add(C&& comp, void(*cb)(Args...), Args... args) {
         auto& vec = std::get<std::vector<C>>(comps);
         vec.push_back(std::move(comp));
-        window_state->events.register_callback(vec.back().get_event(), cb, args...);
+        gEvents.register_callback(vec.back().get_event(), cb, args...);
         return {this, vec.size() - 1};
     }
 
@@ -341,7 +343,7 @@ public:
     Component<C> add(C&& comp, void(*cb)(int64_t data, Args...), Args... args) {
         auto& vec = std::get<std::vector<C>>(comps);
         vec.push_back(std::move(comp));
-        window_state->events.register_callback(vec.back().get_event(), cb, args...);
+        gEvents.register_callback(vec.back().get_event(), cb, args...);
         return {this, vec.size() - 1};
     }
 

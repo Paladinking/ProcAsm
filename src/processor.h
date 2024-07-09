@@ -27,7 +27,7 @@ public:
 
     void clock_tick();
 
-    void register_events(Events* events);
+    void register_events();
 
     bool is_valid() const noexcept;
 
@@ -53,7 +53,6 @@ private:
 
     std::vector<uint8_t> gen_registers;
 
-    Events* events;
 };
 
 

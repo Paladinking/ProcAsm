@@ -1,5 +1,6 @@
 #include "processor.h"
 #include "engine/log.h"
+#include "engine/engine.h"
 #include <string>
 
 Processor::Processor(uint32_t register_count) noexcept : gen_registers(register_count, 0), pc{0}, ticks{0} {
@@ -26,7 +27,7 @@ bool Processor::compile_program(const std::vector<std::string> lines, std::vecto
 
     for (uint64_t i = 0; i < gen_registers.size(); ++i) {
         gen_registers[i] = 0;
-        events->notify_event(EventId::REGISTER_CHANGED, i);
+        gEvents.notify_event(EventId::REGISTER_CHANGED, i);
     }
 
     reset();
@@ -52,7 +53,7 @@ void Processor::clock_tick() {
                 in_ports[port].pop_data();
                 ++pc;
                 zero_flag = gen_registers[reg] == 0;
-                events->notify_event(EventId::REGISTER_CHANGED, reg);
+                gEvents.notify_event(EventId::REGISTER_CHANGED, reg);
             }
             break;
         }
@@ -71,7 +72,7 @@ void Processor::clock_tick() {
             gen_registers[dest] = gen_registers[src];
             ++pc;
             zero_flag = gen_registers[dest] == 0;
-            events->notify_event(EventId::REGISTER_CHANGED, dest);
+            gEvents.notify_event(EventId::REGISTER_CHANGED, dest);
             break;
         }
         case InstructionType::MOVE_IMM: {
@@ -80,7 +81,7 @@ void Processor::clock_tick() {
             gen_registers[dest] = val;
             ++pc;
             zero_flag = gen_registers[dest] == 0;
-            events->notify_event(EventId::REGISTER_CHANGED, dest);
+            gEvents.notify_event(EventId::REGISTER_CHANGED, dest);
             break;
         }
         case InstructionType::ADD: {
@@ -89,7 +90,7 @@ void Processor::clock_tick() {
             gen_registers[dest] += gen_registers[src];
             ++pc;
             zero_flag = gen_registers[dest] == 0;
-            events->notify_event(EventId::REGISTER_CHANGED, dest);
+            gEvents.notify_event(EventId::REGISTER_CHANGED, dest);
             break;
         }
         case InstructionType::SUB: {
@@ -98,7 +99,7 @@ void Processor::clock_tick() {
             gen_registers[dest] -= gen_registers[src];
             ++pc;
             zero_flag = gen_registers[dest] == 0;
-            events->notify_event(EventId::REGISTER_CHANGED, dest);
+            gEvents.notify_event(EventId::REGISTER_CHANGED, dest);
             break;
         }
         case InstructionType::NOP: {
@@ -118,19 +119,22 @@ void Processor::clock_tick() {
     if (pc == instructions.size()) {
         pc = 0;
     }
-    events->notify_event(EventId::TICKS_CHANGED, ticks);
+    gEvents.notify_event(EventId::TICKS_CHANGED, ticks);
 }
 
-void Processor::register_events(Events* events) {
-    this->events = events;
-    events->register_event(EventType::UNIFIED_VEC, EventId::REGISTER_CHANGED, MAX_REGISTERS);
-    events->register_event(EventType::UNIFIED, EventId::TICKS_CHANGED);
-    events->register_event(EventType::UNIFIED, EventId::RUNNING_CHANGED);
+int EventId::REGISTER_CHANGED = 0;
+int EventId::TICKS_CHANGED = 0;
+int EventId::RUNNING_CHANGED = 0;
+
+void Processor::register_events() {
+    EventId::REGISTER_CHANGED = gEvents.register_event(EventType::UNIFIED_VEC, MAX_REGISTERS);
+    EventId::TICKS_CHANGED = gEvents.register_event(EventType::UNIFIED);
+    EventId::RUNNING_CHANGED = gEvents.register_event(EventType::UNIFIED);
     for (auto& port: in_ports) {
-        port.register_event(events);
+        port.register_event();
     }
     for (auto& port: out_ports) {
-        port.register_event(events);
+        port.register_event();
     }
 }
 
@@ -155,12 +159,13 @@ void Processor::reset() {
         port.flush_input();
     }
     pc = 0;
-    events->notify_event(EventId::RUNNING_CHANGED, static_cast<uint64_t>(0));
+    gEvents.notify_event(EventId::RUNNING_CHANGED, static_cast<uint64_t>(0));
+    gEvents.notify_event(EventId::TICKS_CHANGED, ticks);
 }
 
 void Processor::invalidate() {
     valid = false;
     running = false;
-    events->notify_event(EventId::RUNNING_CHANGED, static_cast<uint64_t>(1));
+    gEvents.notify_event(EventId::RUNNING_CHANGED, static_cast<uint64_t>(1));
 }
 

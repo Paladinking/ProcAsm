@@ -4,10 +4,12 @@
 #include <memory>
 #include <tuple>
 #include <vector>
+#include <forward_list>
 
 constexpr int NULL_EVENT = 0;
 
 enum class EventType {
+    EMPTY,
     IMMEDIATE,  // Event triggers callaback instantly
     DELAYED,    // Event triggers callback after tick
     UNIFIED,    // Event triggers one callback for all changes this tick
@@ -65,11 +67,44 @@ private:
     }
 };
 
+class Events;
+
+class EventScope {
+public:
+    EventScope() = default;
+
+    EventScope(Events* events);
+
+    EventScope(const EventScope&) = delete;
+    EventScope& operator=(const EventScope&) = delete;
+    EventScope(EventScope&& other);
+    EventScope& operator=(EventScope&& other);
+
+    ~EventScope();
+
+    void add_callback(int event, std::size_t ix);
+
+    void add_aux(std::size_t ix);
+    
+    void add_event(int event);
+private:
+    Events* events {nullptr};
+
+    std::forward_list<std::size_t> cb_indicies {};
+    std::forward_list<std::size_t> aux_indicies {};
+    std::forward_list<int> evt_indicies {};
+};
+
 class Events {
+    friend class EventScope;
 public:
     Events() noexcept;
+    
+    void begin_scope();
 
-    int register_event(EventType type, int id, int vector_size = -1);
+    EventScope end_scope();
+
+    int register_event(EventType type, int vector_size = -1);
 
     void register_callback(int id, void (*callback)(EventInfo, void *),
                            void *aux);
@@ -82,7 +117,7 @@ public:
             std::tuple<Args...> args;
             void (*cb)(T, Args...);
         };
-        aux_data.emplace_back(new Wrapper{args..., callback});
+        add_aux(new Wrapper{args..., callback});
         auto call = [](EventInfo i, void *aux) {
             Wrapper &w = *reinterpret_cast<Wrapper *>(aux);
             w.cb(i.get<T>(), std::get<Args>(w.args)...);
@@ -98,7 +133,7 @@ public:
             std::tuple<Args...> args;
             void (*cb)(Args...);
         };
-        aux_data.emplace_back(new Wrapper{args..., callback});
+        add_aux(new Wrapper{args..., callback});
         auto call = [](EventInfo i, void *aux) {
             Wrapper &w = *reinterpret_cast<Wrapper *>(aux);
             w.cb(std::get<Args>(w.args)...);
@@ -122,7 +157,16 @@ private:
         virtual ~WrapperBase() = default;
     };
 
+    void add_aux(WrapperBase* ptr);
+
+    void remove_callback(int event, std::size_t ix);
+
+    void remove_aux(std::size_t ix);
+
+    void remove_event(int event);
+
     std::vector<std::unique_ptr<WrapperBase>> aux_data{};
+    std::size_t free_aux = 0;
 
     struct CallbackData {
         void (*callback)(EventInfo, void *);
@@ -134,9 +178,15 @@ private:
         bool triggered;
         std::vector<EventInfo> buffer{};
         std::vector<CallbackData> callbacks{};
+        std::size_t free_ix = 0;
+        int64_t last_ix = -1;
     };
 
-    std::vector<EventData> events;
+    std::vector<EventData> events {};
+    std::size_t free_ix = 1;
+    int64_t last_ix = 0;
+
+    std::vector<EventScope> scopes {};
 };
 
 #endif

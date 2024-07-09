@@ -12,6 +12,8 @@ public:
 
     void init(WindowState* state) override;
 
+    void resume() override;
+
     void render() override;
 
     void tick(Uint64 delta, StateStatus &res) override;
@@ -26,6 +28,8 @@ public:
 
     void handle_focus_change(bool focus) override;
 private:
+    StateStatus next_state;
+
     void set_font_size();
 
     bool should_exit = false;
@@ -34,9 +38,11 @@ private:
 
     Editbox box;
 
+    EventScope scope;
+
     Processor processor {4};
-    ProcessorGui processor_gui{};
     ByteProblem problem {};
+    ProcessorGui processor_gui{};
 
     Uint64 ticks_passed = 0;
 

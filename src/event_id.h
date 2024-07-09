@@ -4,9 +4,9 @@
 
 namespace EventId {
 
-    constexpr int REGISTER_CHANGED = 1;
-    constexpr int TICKS_CHANGED = 2;
-    constexpr int RUNNING_CHANGED = 3;
+    extern int REGISTER_CHANGED;
+    extern int TICKS_CHANGED;
+    extern int RUNNING_CHANGED;
 
 }
 #endif

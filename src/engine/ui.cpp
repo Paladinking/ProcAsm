@@ -217,7 +217,7 @@ Button::Button(int x, int y, int w, int h, std::string text, WindowState &ws)
 Button::Button(int x, int y, int w, int h, std::string text, int fs,
                WindowState &ws)
     : text(x, y, w, h, std::move(text), fs, ws) {
-    event = ws.events.register_event(EventType::IMMEDIATE, -1);
+    event = gEvents.register_event(EventType::IMMEDIATE);
 }
 
 Button::Button(SDL_Rect rect, std::string text, const WindowState &ws, void *)
@@ -249,7 +249,7 @@ bool Button::handle_press(WindowState &ws, int x_offset, int y_offset,
     int mouseX = ws.mouseX - x_offset;
     int mouseY = ws.mouseY - y_offset;
     if (handle_press(mouseX, mouseY, press)) {
-        ws.events.notify_event(event, static_cast<int64_t>(1));
+        gEvents.notify_event(event, static_cast<int64_t>(1));
         return true;
     }
     return false;
@@ -303,7 +303,7 @@ Dropdown::Dropdown(int x, int y, int w, int h, std::string text,
                    WindowState &window_state)
     : base(x, y, w, h, text, window_state), default_value(text), ix{-1} {
     set_choices(choices, window_state);
-    event = window_state.events.register_event(EventType::IMMEDIATE, -1);
+    event = gEvents.register_event(EventType::IMMEDIATE);
 }
 
 void Dropdown::render(int x_offset, int y_offset,
@@ -406,7 +406,7 @@ int Dropdown::handle_press(WindowState &window_state, int x_offset,
             } else {
                 base.set_text(choices[pressed].get_text().substr(1));
             }
-            window_state.events.notify_event(event, static_cast<int64_t>(ix));
+            gEvents.notify_event(event, static_cast<int64_t>(ix));
         }
         return pressed - 1;
     }

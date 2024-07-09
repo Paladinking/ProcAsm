@@ -2,6 +2,7 @@
 #define ENGINE_00_H
 #include <SDL.h>
 #include <SDL_ttf.h>
+#include "events.h"
 
 // Global renderer variable
 extern SDL_Renderer *gRenderer;
@@ -9,6 +10,8 @@ extern SDL_Renderer *gRenderer;
 extern SDL_Window *gWindow;
 
 extern TTF_Font *gFont;
+
+extern Events gEvents;
 
 /**
  * Struct used for putting an SDL_Surface in a smart-pointer.

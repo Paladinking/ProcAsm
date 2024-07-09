@@ -10,8 +10,8 @@ ProcessorGui::ProcessorGui() {}
 ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, int y, WindowState* window_state) : processor{processor},
     problem{problem}, x{x}, y{y}, window_state{window_state} {
 
-    processor->register_events(&window_state->events);
-    problem->register_events(&window_state->events);
+    processor->register_events();
+    problem->register_events();
     comps.set_window_state(window_state);
 
     Callback run_pressed = [](ProcessorGui* gui) {
@@ -27,6 +27,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
     };
 
     Callback step_pressed = [](ProcessorGui* gui) {
+        LOG_DEBUG("Step pressed");
         if (gui->processor->is_valid()) {
             gui->problem->clock_tick_output();
             gui->processor->clock_tick();
@@ -71,9 +72,9 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
         gui->ticks->set_text("Ticks: " + std::to_string(ticks));
     };
 
-    window_state->events.register_callback(EventId::RUNNING_CHANGED, run_change, this);
-    window_state->events.register_callback(EventId::REGISTER_CHANGED, register_change, this);
-    window_state->events.register_callback(EventId::TICKS_CHANGED, ticks_change, this);
+    gEvents.register_callback(EventId::RUNNING_CHANGED, run_change, this);
+    gEvents.register_callback(EventId::REGISTER_CHANGED, register_change, this);
+    gEvents.register_callback(EventId::TICKS_CHANGED, ticks_change, this);
 
     Callback_u indata_change = [](uint64_t data, ProcessorGui* gui) {
         uint8_t val;
@@ -93,8 +94,8 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
         }
     };
 
-    window_state->events.register_callback(problem->input_event, indata_change, this);
-    window_state->events.register_callback(problem->output_event, outdata_change, this);
+    gEvents.register_callback(problem->input_event, indata_change, this);
+    gEvents.register_callback(problem->output_event, outdata_change, this);
 
     for (uint32_t i = 0; i < processor->gen_registers.size(); ++i) {
         auto text = "R" + std::to_string(i) + ": 0";
@@ -110,7 +111,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
 
     for (uint32_t i = 0; i < processor->in_ports.size(); ++i) {
         int event = processor->in_ports[i].get_event();
-        window_state->events.register_callback(event, inport_change,
+        gEvents.register_callback(event, inport_change,
                                                static_cast<uint64_t>(i), this);
 
         std::string s = processor->in_ports[i].has_data() ? std::to_string(processor->in_ports[i].get_data()) : "";
@@ -123,7 +124,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
     }
     for (uint32_t i = 0; i < processor->out_ports.size(); ++i) {
         int event = processor->out_ports[i].get_event();
-        window_state->events.register_callback(event, outport_change,
+        gEvents.register_callback(event, outport_change,
                                                static_cast<uint64_t>(i), this);
 
         std::string name = "Out " + processor->out_ports[i].name;
@@ -273,6 +274,9 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
     }
 
     comps.add(Box(BOX_SIZE - 120, 0, 120, 100, 2));
+
+    processor_info = comps.add(Button(BOX_SIZE + 20, 20, 40, 40, "i", *window_state));
+
 }
 
 void ProcessorGui::render() const {

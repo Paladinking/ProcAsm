@@ -88,11 +88,23 @@ void GameState::init(WindowState *window_state) {
     LOG_INFO("Physical size: %d, %d\n", window_state->window_width, window_state->window_height);
     LOG_INFO("Logical size: %d, %d\n", window_state->screen_width, window_state->screen_height);
 
+    gEvents.begin_scope();
+
     box.~Editbox();
     new (&box)Editbox{BOX_X, BOX_Y, *window_state };
 
     processor_gui.~ProcessorGui();
     new (&processor_gui)ProcessorGui(&processor, &problem, BOX_X, BOX_Y, window_state);
+
+    void(*proc_cb)(GameState*) = [](GameState* self) {
+        self->next_state.action = StateStatus::POP;
+    };
+
+    int e = processor_gui.processor_info->get_event();
+    gEvents.register_callback(e, proc_cb, this);
+
+    scope = gEvents.end_scope();
+    next_state.action = StateStatus::NONE;
 
     set_font_size();
 
@@ -112,13 +124,19 @@ void GameState::init(WindowState *window_state) {
     }
 }
 
+void GameState::resume() {
+    next_state.action = StateStatus::NONE;
+}
+
 void GameState::render() {
     box.render();
     processor_gui.render();
 
 }
 void GameState::tick(const Uint64 delta, StateStatus &res) {
-    if (should_exit) {
+    res = next_state;
+    if (next_state.will_leave()) {
+        LOG_DEBUG("Saving...");
         SDL_RWops* file = SDL_RWFromFile("program.txt", "w");
         if (file != nullptr) {
             const auto& lines = box.get_text();
@@ -128,7 +146,6 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
             }
             SDL_RWclose(file);
         }
-        res.action = StateStatus::EXIT;
         return;
     }
 
@@ -163,7 +180,7 @@ void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {
 
 void GameState::handle_down(const SDL_Keycode key, const Uint8 mouse) {
     if (key == SDLK_ESCAPE) {
-        should_exit = true;
+        next_state.action = StateStatus::POP;
     } else if (mouse == SDL_BUTTON_LEFT) {
         processor_gui.mouse_change(true);
         if (box.is_pressed(window_state->mouseX, window_state->mouseY)) {

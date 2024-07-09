@@ -20,6 +20,8 @@ public:
 
     void mouse_change(bool press);
 
+    Component<Button> processor_info {};
+    Component<Button> problem_info {};
 private:
     Processor* processor {nullptr};
     ByteProblem* problem {nullptr};

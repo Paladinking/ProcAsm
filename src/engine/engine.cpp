@@ -8,6 +8,8 @@
 extern const int DEFAULT_FONT_LENGTH;
 extern const Uint8 DEFAULT_FONT[];
 
+Events gEvents {};
+
 TTF_Font *gFont;
 
 Uint8* font_buffer = nullptr;

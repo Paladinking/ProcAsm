@@ -2,7 +2,7 @@
 #define PROC_ASM_PORT_H
 #include <string>
 #include <type_traits>
-#include "engine/events.h"
+#include "engine/engine.h"
 
 class InPort {
 public:
@@ -165,9 +165,8 @@ class BlockingBytePort : public BytePort<T, T> {
 public:
     BlockingBytePort(const std::string& name) : BytePort<T, T>(name), element{}, empty{true} {}
 
-    int register_event(Events* events) {
-        event = events->register_event(EventType::UNIFIED, -1);
-        this->events = events;
+    int register_event() {
+        event = gEvents.register_event(EventType::UNIFIED);
         return event;
     }
 
@@ -194,24 +193,23 @@ public:
     virtual void push_data(T t) noexcept override {
         element = t;
         empty = false;
-        events->notify_event(event, t);
+        gEvents.notify_event(event, t);
     }
 
     virtual void pop_data() noexcept override {
         empty = true;
-        events->notify_event(event, static_cast<T>(0));
+        gEvents.notify_event(event, static_cast<T>(0));
     }
 
     virtual void flush_input() noexcept override {
         pop_data();
-        events->notify_event(event, static_cast<T>(0));
+        gEvents.notify_event(event, static_cast<T>(0));
     }
 
 private:
     T element;
     bool empty;
 
-    Events* events = nullptr;
     int event = NULL_EVENT;
 };
 

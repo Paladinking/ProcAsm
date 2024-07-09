@@ -15,7 +15,7 @@ public:
 
     void reset();
 
-    void register_events(Events* events);
+    void register_events();
 
     ForwardingOutputPort<uint8_t>* get_input_port(std::size_t ix);
 
@@ -40,8 +40,6 @@ private:
 
     int input_event;
     int output_event;
-
-    Events* events;
 };
 
 #endif

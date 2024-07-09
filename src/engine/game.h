@@ -1,9 +1,6 @@
 #ifndef GAME_00_H
 #define GAME_00_H
-#include "engine.h"
-#include "events.h"
 #include "exceptions.h"
-#include "texture.h"
 #include <SDL.h>
 #include <memory>
 #include <stack>
@@ -34,8 +31,6 @@ struct WindowState {
     int mouseY;
     Uint32 mouse_mask;
     const Uint8 *keyboard_state;
-
-    Events events;
 };
 
 /**
@@ -144,6 +139,11 @@ struct StateStatus {
     enum { NONE, SWAP, PUSH, POP, EXIT } action = NONE;
     // state to be put on the State stack after a SWAP / PUSH
     State *new_state = nullptr;
+
+    // Returns true if this action will remove current state from stack.
+    inline bool will_leave() const {
+        return action == SWAP || action == POP || action == EXIT;
+    }
 };
 
 /**
