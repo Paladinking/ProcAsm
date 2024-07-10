@@ -38,8 +38,8 @@ private:
     std::vector<ForwardingOutputPort<uint8_t>> input_ports;
     std::vector<ForwardingInputPort<uint8_t>> output_ports;
 
-    int input_event;
-    int output_event;
+    event_t input_event;
+    event_t output_event;
 };
 
 #endif

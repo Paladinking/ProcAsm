@@ -140,10 +140,10 @@ Compiler::Compiler(uint32_t gen_reg_count, std::vector<std::string> in_ports, st
             instructions{instructions}, instruction_set{instruction_set} {}
 
 Instruction Compiler::parse(InstuctionSlot slot, const std::string& line, const std::vector<std::pair<std::size_t, std::size_t>>& opers,
-                  const std::unordered_map<std::string, uint32_t> labels, ErrorMsg& error) const {
+                            std::unordered_map<std::string, uint32_t> labels, ErrorMsg& error) const {
     std::size_t i = 1;
     std::size_t slot_ix = 0;
-    std::array<Operand, MAX_OPERANDS> out_operands;
+    std::array<Operand, MAX_OPERANDS> out_operands {};
     memset(out_operands.data(), 0, 4 * sizeof(Operand));
     for (; i < opers.size(); ++i, ++slot_ix) {
         std::size_t start = opers[i].first;
@@ -261,7 +261,7 @@ std::vector<std::pair<std::size_t, std::size_t>> split(const std::string& s, std
         start_ix = start_ix + 1;
     }
     start_ix = s.find_first_not_of(", \t", start_ix);
-    Instruction i;
+    Instruction i {};
 
     while (true) {
         if (start_ix == std::string::npos || start_ix >= end_ix) {
@@ -277,8 +277,7 @@ std::vector<std::pair<std::size_t, std::size_t>> split(const std::string& s, std
     }
 }
 
-ErrorMsg::ErrorMsg() {}
-ErrorMsg::ErrorMsg(const std::string& msg, TextPosition pos) : msg{std::move(msg)}, pos{pos}, empty{false} {}
+ErrorMsg::ErrorMsg(std::string msg, TextPosition pos) : msg{std::move(msg)}, pos{pos}, empty{false} {}
 
 bool Compiler::compile(const std::vector<std::string>& lines, std::vector<ErrorMsg>& errors) {
     errors.clear();
@@ -340,7 +339,7 @@ bool Compiler::compile(const std::vector<std::string>& lines, std::vector<ErrorM
             continue;
         }
         ErrorMsg error;
-        Instruction i = parse(val->second, line, parts, labels, error);
+        Instruction i = parse(val->second, line, parts, std::move(labels), error);
         if (!error.empty) {
             error.pos.row = row;
             errors.push_back(error);

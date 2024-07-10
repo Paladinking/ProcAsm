@@ -23,7 +23,7 @@ class Processor {
 public:
     Processor(uint32_t register_count) noexcept;
 
-    bool compile_program(const std::vector<std::string> lines, std::vector<ErrorMsg>& errors);
+    bool compile_program(std::vector<std::string> lines, std::vector<ErrorMsg>& errors);
 
     void clock_tick();
 

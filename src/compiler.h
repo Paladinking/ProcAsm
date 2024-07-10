@@ -15,8 +15,8 @@ struct OperandSlot {
 
 
 struct ErrorMsg {
-    ErrorMsg();
-    ErrorMsg(const std::string& msg, TextPosition pos);
+    ErrorMsg() = default;
+    ErrorMsg(std::string msg, TextPosition pos);
 
     std::string msg {};
     TextPosition pos {};
@@ -38,7 +38,7 @@ public:
 
 private:
     Instruction parse(InstuctionSlot slot, const std::string& line, const std::vector<std::pair<std::size_t, std::size_t>>& opers,
-                      const std::unordered_map<std::string, uint32_t> labels, ErrorMsg& error) const;
+                      std::unordered_map<std::string, uint32_t> labels, ErrorMsg& error) const;
 
     const std::unordered_map<std::string, InstuctionSlot>& instruction_set;
     std::vector<Instruction>& instructions;

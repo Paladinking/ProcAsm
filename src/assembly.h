@@ -38,7 +38,7 @@ private:
 
     Editbox box;
 
-    EventScope scope;
+    std::unique_ptr<EventScope> scope;
 
     Processor processor {4};
     ByteProblem problem {};

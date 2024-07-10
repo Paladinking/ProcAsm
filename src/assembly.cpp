@@ -88,7 +88,7 @@ void GameState::init(WindowState *window_state) {
     LOG_INFO("Physical size: %d, %d\n", window_state->window_width, window_state->window_height);
     LOG_INFO("Logical size: %d, %d\n", window_state->screen_width, window_state->screen_height);
 
-    gEvents.begin_scope();
+    scope = gEvents.begin_scope();
 
     box.~Editbox();
     new (&box)Editbox{BOX_X, BOX_Y, *window_state };
@@ -97,13 +97,13 @@ void GameState::init(WindowState *window_state) {
     new (&processor_gui)ProcessorGui(&processor, &problem, BOX_X, BOX_Y, window_state);
 
     void(*proc_cb)(GameState*) = [](GameState* self) {
-        self->next_state.action = StateStatus::POP;
+
     };
 
     int e = processor_gui.processor_info->get_event();
     gEvents.register_callback(e, proc_cb, this);
 
-    scope = gEvents.end_scope();
+    gEvents.finalize_scope();
     next_state.action = StateStatus::NONE;
 
     set_font_size();

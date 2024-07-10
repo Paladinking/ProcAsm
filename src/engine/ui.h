@@ -208,7 +208,7 @@ private:
 
     friend class Dropdown;
 
-    int event = -1;
+    event_t event = -1;
 
     TextBox text;
 
@@ -251,7 +251,7 @@ private:
     int max_w, max_h;
 
     int ix;
-    int event = -1;
+    event_t event = -1;
 
     std::string default_value;
 

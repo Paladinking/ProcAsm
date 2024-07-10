@@ -122,9 +122,9 @@ void Processor::clock_tick() {
     gEvents.notify_event(EventId::TICKS_CHANGED, ticks);
 }
 
-int EventId::REGISTER_CHANGED = 0;
-int EventId::TICKS_CHANGED = 0;
-int EventId::RUNNING_CHANGED = 0;
+event_t EventId::REGISTER_CHANGED = 0;
+event_t EventId::TICKS_CHANGED = 0;
+event_t EventId::RUNNING_CHANGED = 0;
 
 void Processor::register_events() {
     EventId::REGISTER_CHANGED = gEvents.register_event(EventType::UNIFIED_VEC, MAX_REGISTERS);

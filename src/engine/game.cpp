@@ -28,7 +28,7 @@ void Game::create() {
 
     gWindow = SDL_CreateWindow(initial_title.c_str(), SDL_WINDOWPOS_UNDEFINED,
                                SDL_WINDOWPOS_UNDEFINED, initial_width,
-                               initial_height, SDL_WINDOW_HIDDEN | SDL_WINDOW_FULLSCREEN);
+                               initial_height, SDL_WINDOW_HIDDEN | SDL_WINDOW_FULLSCREEN_DESKTOP);
 
     if (gWindow == nullptr) {
         throw SDL_exception("Window could not be created, " +

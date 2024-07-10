@@ -4,13 +4,13 @@
 
 EventScope::EventScope(Events *events) : events{events} {}
 
-EventScope::EventScope(EventScope &&other)
+EventScope::EventScope(EventScope &&other) noexcept
     : events{other.events}, cb_indicies{std::move(other.cb_indicies)},
       aux_indicies{std::move(other.aux_indicies)} {
     other.events = nullptr;
 }
 
-EventScope& EventScope::operator=(EventScope&& other) {
+EventScope& EventScope::operator=(EventScope&& other) noexcept {
     if (this == &other) {
         return *this;
     }
@@ -20,24 +20,19 @@ EventScope& EventScope::operator=(EventScope&& other) {
     return *this;
 }
 
-EventScope Events::end_scope() {
-    if (scopes.size() > 1) {
-        EventScope top = std::move(scopes.back());
-        scopes.pop_back();
-        return top;
-    }
-    throw base_exception("No matching begin_scope");
-}
-
-void EventScope::add_callback(int event, std::size_t ix) {
+void EventScope::add_callback(event_t event, std::size_t ix) {
     cb_indicies.push_front(ix);
     cb_indicies.push_front(event);
 }
 
 void EventScope::add_aux(std::size_t ix) { aux_indicies.push_front(ix); }
 
-void EventScope::add_event(int event) {
+void EventScope::add_event(event_t event) {
     evt_indicies.push_front(event);
+}
+
+void EventScope::finalize() {
+    finalized = true;
 }
 
 EventScope::~EventScope() {
@@ -46,7 +41,7 @@ EventScope::~EventScope() {
     }
     auto it = cb_indicies.begin();
     while (it != cb_indicies.end()) {
-        int evt = *it;
+        event_t evt = *it;
         ++it;
         std::size_t ix = *it;
         ++it;
@@ -55,19 +50,48 @@ EventScope::~EventScope() {
     for (std::size_t aux : aux_indicies) {
         events->remove_aux(aux);
     }
-    for (int evt: evt_indicies) {
+    for (event_t evt: evt_indicies) {
         events->remove_event(evt);
+    }
+    if (!finalized) {
+        events->end_scope(this);
     }
 }
 
 Events::Events() noexcept : events{{EventType::EMPTY}}, scopes{} {
-    scopes.emplace_back(this);
+    root_scope = begin_scope();
+    root_scope->finalize();
 }
 
-void Events::begin_scope() { scopes.emplace_back(this); }
+std::unique_ptr<EventScope> Events::begin_scope() {
+    auto ptr = std::make_unique<EventScope>(this);
+    scopes.emplace_back(ptr.get());
+    return ptr;
+}
 
-int Events::register_event(EventType type, int vector_size) {
-    int id = free_ix;
+void Events::end_scope(EventScope *ptr) {
+    for (int64_t i = scopes.size() - 1; i >= 0; --i) {
+        if (scopes[i] == ptr) {
+            LOG_WARNING("End scope called");
+
+            scopes.erase(scopes.begin() + i);
+            return;
+        }
+    }
+    LOG_WARNING("Invalid scope end");
+}
+
+void Events::finalize_scope() {
+    if (scopes.size() > 1) {
+        scopes.back()->finalize();
+        scopes.pop_back();
+    } else {
+        throw base_exception("No matching begin_scope");
+    }
+}
+
+event_t Events::register_event(EventType type, int vector_size) {
+    event_t id = free_ix;
     ++free_ix;
     for (; free_ix < events.size(); ++free_ix) {
         if (events[free_ix].type == EventType::EMPTY) {
@@ -91,13 +115,13 @@ int Events::register_event(EventType type, int vector_size) {
             }
         }
     }
-    scopes.back().add_event(id);
+    scopes.back()->add_event(id);
     return id;
 }
 
-void Events::register_callback(int id, void (*callback)(EventInfo, void *),
+void Events::register_callback(event_t id, void (*callback)(EventInfo, void *),
                                void *aux) {
-    scopes.back().add_callback(id, events[id].free_ix);
+    scopes.back()->add_callback(id, events[id].free_ix);
     LOG_DEBUG("Event %d callback added at %d", id, events[id].free_ix);
     if (events[id].free_ix == events[id].callbacks.size()) {
         events[id].callbacks.push_back({callback, aux});
@@ -119,7 +143,7 @@ void Events::register_callback(int id, void (*callback)(EventInfo, void *),
     LOG_DEBUG("New free: %d", events[id].free_ix);
 }
 
-void Events::notify_event(int id, EventInfo data) {
+void Events::notify_event(event_t id, EventInfo data) {
     switch (events[id].type) {
     case EventType::IMMEDIATE:
         for (auto &cb : events[id].callbacks) {
@@ -144,7 +168,7 @@ void Events::notify_event(int id, EventInfo data) {
 }
 
 void Events::add_aux(WrapperBase *aux) {
-    scopes.back().add_aux(free_aux);
+    scopes.back()->add_aux(free_aux);
     if (free_aux == aux_data.size()) {
         aux_data.emplace_back(aux);
         ++free_aux;
@@ -152,7 +176,7 @@ void Events::add_aux(WrapperBase *aux) {
         aux_data[free_aux].reset(aux);
         ++free_aux;
         for (; free_aux < aux_data.size(); ++free_aux) {
-            if (aux_data[free_aux].get() == nullptr) {
+            if (aux_data[free_aux] == nullptr) {
                 break;
             }
         }
@@ -161,10 +185,11 @@ void Events::add_aux(WrapperBase *aux) {
 
 void null_callback(EventInfo, void*) {}
 
-void Events::remove_event(int event) {
+void Events::remove_event(event_t event) {
     LOG_DEBUG("Removing event %d", event);
     if (event <= 0 || event >= events.size()) {
         LOG_WARNING("Out of bounds event removed");
+        return;
     }
     events[event].type = EventType::EMPTY;
     events[event].buffer.clear();
@@ -173,17 +198,18 @@ void Events::remove_event(int event) {
         free_ix = event;
     }
     if (event == last_ix) {
-        int64_t i = event;
+        int64_t i = event - 1;
         for (; i >= 1; --i) {
-            if (events[event].type != EventType::EMPTY) {
+            if (events[i].type != EventType::EMPTY) {
                 break;
             }
         }
         last_ix = i;
+        events.resize(i + 1);
     }
 }
 
-void Events::remove_callback(int event, std::size_t ix) {
+void Events::remove_callback(event_t event, std::size_t ix) {
     LOG_DEBUG("Removing event %d callback %d", event, ix);
     if (event <= 0 || event >= events.size()) {
         LOG_WARNING("Out of bounds event callback removed");
@@ -194,7 +220,7 @@ void Events::remove_callback(int event, std::size_t ix) {
         return;
     }
     if (events[event].type == EventType::EMPTY) {
-        LOG_WARNING("Removing calback from empty event");
+        LOG_WARNING("Removing callback from empty event");
         return;
     }
     events[event].callbacks[ix].callback = null_callback;
@@ -203,9 +229,9 @@ void Events::remove_callback(int event, std::size_t ix) {
         events[event].free_ix = ix;
     }
     if (ix == events[event].last_ix) {
-        int64_t i = ix;
+        int64_t i = ix - 1;
         for (; i >= 0; --i) {
-            if (events[event].callbacks[ix].callback != null_callback) {
+            if (events[event].callbacks[i].callback != null_callback) {
                 break;
             }
         }
@@ -216,8 +242,10 @@ void Events::remove_callback(int event, std::size_t ix) {
 
 void Events::remove_aux(std::size_t ix) {
     LOG_DEBUG("Removing aux %d", ix);
-    aux_data[ix] = std::move(aux_data.back());
-    aux_data.pop_back();
+    aux_data[ix].reset();
+    if (ix < free_aux) {
+        free_aux = ix;
+    }
 }
 
 void Events::handle_events() {
@@ -238,7 +266,7 @@ void Events::handle_events() {
             for (uint64_t i = 0; i < event->buffer.size(); ++i) {
                 if (event->buffer[i].u != 0) {
                     event->buffer[i].u = 0;
-                    EventInfo data;
+                    EventInfo data {};
                     data.u = i;
                     for (auto &cb : event->callbacks) {
                         cb.callback(data, cb.aux);

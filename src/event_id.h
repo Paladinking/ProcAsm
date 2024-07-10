@@ -4,9 +4,9 @@
 
 namespace EventId {
 
-    extern int REGISTER_CHANGED;
-    extern int TICKS_CHANGED;
-    extern int RUNNING_CHANGED;
+    extern event_t REGISTER_CHANGED;
+    extern event_t TICKS_CHANGED;
+    extern event_t RUNNING_CHANGED;
 
 }
 #endif

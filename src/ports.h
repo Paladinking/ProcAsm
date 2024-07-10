@@ -41,27 +41,27 @@ class BytePort : public InBytePort<I>, public OutBytePort<O> {
 public:
     const std::string name;
 
-    BytePort(const std::string& name) : name{name} {}
+    explicit BytePort(std::string name) : name{std::move(name)} {}
 };
 
 template<class I>
 class NullByteInput final : public InBytePort<I> {
 public:
-    virtual const std::string& get_name() const noexcept override {
+    const std::string& get_name() const noexcept override {
         return name;
     }
 
-    virtual I get_data() const noexcept override {
+    I get_data() const noexcept override {
         return {};
     }
 
-    virtual void pop_data() noexcept override {}
+    void pop_data() noexcept override {}
 
-    virtual bool has_data() const noexcept override {
+    bool has_data() const noexcept override {
         return false;
     }
 
-    virtual void flush_input() noexcept override {}
+    void flush_input() noexcept override {}
 
     static const std::string name;
 };
@@ -72,9 +72,9 @@ const std::string NullByteInput<I>::name = "NULL";
 template <class O>
 class NullByteOutput final : public OutBytePort<O> {
 public:
-    virtual void push_data(O o) noexcept override {}
+    void push_data(O o) noexcept override {}
 
-    virtual bool has_space() const noexcept override {
+    bool has_space() const noexcept override {
         return false;
     }
 };
@@ -82,7 +82,7 @@ template<class I> class ForwardingInputPort final : public InBytePort<I> {
 public:
     const std::string name;
 
-    ForwardingInputPort(const std::string& name) : name{name}, port{&null_port} {}
+    explicit ForwardingInputPort(std::string name) : name{std::move(name)}, port{&null_port} {}
 
     virtual const std::string& get_name() const noexcept final {
         return name;
@@ -104,15 +104,15 @@ public:
         port->pop_data();
     }
 
-    virtual void flush_input() noexcept override {
+    virtual void flush_input() noexcept final {
         port->flush_input();
     }
 
-    void set_port(InBytePort<I>* port) noexcept {
-        if (port == nullptr) {
+    void set_port(InBytePort<I>* new_port) noexcept {
+        if (new_port == nullptr) {
             this->port = &null_port;
         } else {
-            this->port = port;
+            this->port = new_port;
         }
     }
 
@@ -130,25 +130,25 @@ class ForwardingOutputPort final : public OutBytePort<O> {
 public:
     const std::string name;
 
-    ForwardingOutputPort(const std::string& name) : name{name}, port{&null_port} {}
+    explicit ForwardingOutputPort(std::string name) : name{std::move(name)}, port{&null_port} {}
 
     OutBytePort<O>* check_port(OutPort* in_port) const noexcept {
         return dynamic_cast<OutBytePort<O>*>(in_port);
     }
 
-    virtual void push_data(O t) noexcept override {
+    void push_data(O t) noexcept override {
         port->push_data(t);
     }
 
-    virtual bool has_space() const noexcept override {
+    bool has_space() const noexcept override {
         return port->has_space();
     }
 
-    void set_port(OutBytePort<O>* port) noexcept {
-        if (port == nullptr) {
+    void set_port(OutBytePort<O>* new_port) noexcept {
+        if (new_port == nullptr) {
             this->port = &null_port;
         } else {
-            this->port = port;
+            this->port = new_port;
         }
     }
 private:
@@ -174,34 +174,34 @@ public:
         return event;
     }
 
-    virtual const std::string& get_name() const noexcept override {
+    const std::string& get_name() const noexcept override {
         return BytePort<T, T>::name;
     }
 
-    virtual bool has_data() const noexcept override {
+    bool has_data() const noexcept override {
         return !empty;
     }
 
-    virtual bool has_space() const noexcept override {
+    bool has_space() const noexcept override {
         return empty;
     }
 
-    virtual T get_data() const noexcept override {
+    T get_data() const noexcept override {
         return element;
     }
 
-    virtual void push_data(T t) noexcept override {
+    void push_data(T t) noexcept override {
         element = t;
         empty = false;
         gEvents.notify_event(event, t);
     }
 
-    virtual void pop_data() noexcept override {
+    void pop_data() noexcept override {
         empty = true;
         gEvents.notify_event(event, static_cast<T>(0));
     }
 
-    virtual void flush_input() noexcept override {
+    void flush_input() noexcept override {
         pop_data();
         gEvents.notify_event(event, static_cast<T>(0));
     }
@@ -210,7 +210,7 @@ private:
     T element;
     bool empty;
 
-    int event = NULL_EVENT;
+    event_t event = NULL_EVENT;
 };
 
 #endif

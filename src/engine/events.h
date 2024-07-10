@@ -6,8 +6,6 @@
 #include <vector>
 #include <forward_list>
 
-constexpr int NULL_EVENT = 0;
-
 enum class EventType {
     EMPTY,
     IMMEDIATE,  // Event triggers callaback instantly
@@ -15,6 +13,10 @@ enum class EventType {
     UNIFIED,    // Event triggers one callback for all changes this tick
     UNIFIED_VEC // Event triggers one callback for each unique data
 };
+
+typedef uint32_t event_t;
+
+constexpr event_t NULL_EVENT = 0;
 
 union EventInfo {
     int64_t i;
@@ -73,26 +75,31 @@ class EventScope {
 public:
     EventScope() = default;
 
-    EventScope(Events* events);
+    explicit EventScope(Events* events);
 
     EventScope(const EventScope&) = delete;
     EventScope& operator=(const EventScope&) = delete;
-    EventScope(EventScope&& other);
-    EventScope& operator=(EventScope&& other);
+    EventScope(EventScope&& other) noexcept;
+    EventScope& operator=(EventScope&& other) noexcept;
 
     ~EventScope();
+private:
+    friend class Events;
 
-    void add_callback(int event, std::size_t ix);
+    void add_callback(event_t event, std::size_t ix);
 
     void add_aux(std::size_t ix);
-    
-    void add_event(int event);
-private:
+
+    void add_event(event_t event);
+
+    void finalize();
+
+    bool finalized = false;
     Events* events {nullptr};
 
     std::forward_list<std::size_t> cb_indicies {};
     std::forward_list<std::size_t> aux_indicies {};
-    std::forward_list<int> evt_indicies {};
+    std::forward_list<event_t> evt_indicies {};
 };
 
 class Events {
@@ -100,19 +107,19 @@ class Events {
 public:
     Events() noexcept;
     
-    void begin_scope();
+    std::unique_ptr<EventScope> begin_scope();
 
-    EventScope end_scope();
+    void finalize_scope();
 
-    int register_event(EventType type, int vector_size = -1);
+    event_t register_event(EventType type, int vector_size = -1);
 
-    void register_callback(int id, void (*callback)(EventInfo, void *),
+    void register_callback(event_t id, void (*callback)(EventInfo, void *),
                            void *aux);
 
     template <class T, class... Args>
-    void register_callback(int id, void (*callback)(T, Args...), Args... args) {
+    void register_callback(event_t id, void (*callback)(T, Args...), Args... args) {
         struct Wrapper : public WrapperBase {
-            Wrapper(Args... args, void (*cb)(T, Args...))
+            explicit Wrapper(Args... args, void (*cb)(T, Args...))
                 : args{args...}, cb{cb} {}
             std::tuple<Args...> args;
             void (*cb)(T, Args...);
@@ -126,9 +133,9 @@ public:
     }
 
     template <class... Args>
-    void register_callback(int id, void (*callback)(Args...), Args... args) {
+    void register_callback(event_t id, void (*callback)(Args...), Args... args) {
         struct Wrapper : public WrapperBase {
-            Wrapper(Args... args, void (*cb)(Args...))
+            explicit Wrapper(Args... args, void (*cb)(Args...))
                 : args{args...}, cb{cb} {}
             std::tuple<Args...> args;
             void (*cb)(Args...);
@@ -142,13 +149,13 @@ public:
     }
 
     template<class T>
-    void notify_event(int id, T t) {
+    void notify_event(event_t id, T t) {
         EventInfo info;
         info.set<T>(t);
         notify_event(id, info);
     }
 
-    void notify_event(int id, EventInfo data);
+    void notify_event(event_t id, EventInfo data);
 
     void handle_events();
 
@@ -159,11 +166,13 @@ private:
 
     void add_aux(WrapperBase* ptr);
 
-    void remove_callback(int event, std::size_t ix);
+    void remove_callback(event_t event, std::size_t ix);
 
     void remove_aux(std::size_t ix);
 
-    void remove_event(int event);
+    void remove_event(event_t event);
+
+    void end_scope(EventScope* ptr);
 
     std::vector<std::unique_ptr<WrapperBase>> aux_data{};
     std::size_t free_aux = 0;
@@ -186,7 +195,9 @@ private:
     std::size_t free_ix = 1;
     int64_t last_ix = 0;
 
-    std::vector<EventScope> scopes {};
+    std::vector<EventScope*> scopes {};
+
+    std::unique_ptr<EventScope> root_scope{};
 };
 
 #endif
