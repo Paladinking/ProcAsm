@@ -2,6 +2,7 @@
 #include "event_id.h"
 #include "engine/log.h"
 #include "config.h"
+#include "processor_menu.h"
 
 GameState::GameState() : State() {}
 
@@ -74,6 +75,8 @@ void GameState::handle_size_change() {
     set_font_size();
 }
 
+event_t EventId::MENU_CHANGE = 0;
+
 void GameState::init(WindowState *window_state) {
     SDL_ShowWindow(gWindow);
     SDL_RenderSetVSync(gRenderer, 1);
@@ -90,6 +93,8 @@ void GameState::init(WindowState *window_state) {
 
     scope = gEvents.begin_scope();
 
+    EventId::MENU_CHANGE = gEvents.register_event(EventType::UNIFIED);
+
     box.~Editbox();
     new (&box)Editbox{BOX_X, BOX_Y, *window_state };
 
@@ -97,7 +102,9 @@ void GameState::init(WindowState *window_state) {
     new (&processor_gui)ProcessorGui(&processor, &problem, BOX_X, BOX_Y, window_state);
 
     void(*proc_cb)(GameState*) = [](GameState* self) {
-
+        gEvents.notify_event(EventId::MENU_CHANGE, static_cast<uint64_t>(1));
+        self->next_state.action = StateStatus::PUSH;
+        self->next_state.new_state = new ProcessorMenu(self);
     };
 
     int e = processor_gui.processor_info->get_event();
@@ -122,10 +129,16 @@ void GameState::init(WindowState *window_state) {
         delete[] data;
         SDL_RWclose(file);
     }
+
+    std::vector<ErrorMsg> errors;
+    const auto& text = box.get_text();
+    processor.compile_program(text, errors);
+    box.set_errors(errors);
 }
 
 void GameState::resume() {
     next_state.action = StateStatus::NONE;
+    gEvents.notify_event(EventId::MENU_CHANGE, static_cast<uint64_t>(0));
 }
 
 void GameState::render() {

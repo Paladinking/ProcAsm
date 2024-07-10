@@ -19,11 +19,11 @@ void ByteProblem::reset() {
     gEvents.notify_event(output_event, 0);
 }
 
-ForwardingOutputPort<uint8_t> *ByteProblem::get_input_port(std::size_t ix) {
+ByteInputSlot<uint8_t> *ByteProblem::get_input_port(std::size_t ix) {
     return &input_ports[ix];
 }
 
-ForwardingInputPort<uint8_t> *ByteProblem::get_output_port(std::size_t ix) {
+ByteOutputSlot<uint8_t> *ByteProblem::get_output_port(std::size_t ix) {
     return &output_ports[ix];
 }
 
@@ -39,7 +39,7 @@ bool ByteProblem::poll_output(std::size_t ix, uint8_t& val) const {
 
 void ByteProblem::clock_tick_input() {
     if (input_ports[0].has_space()) {
-        input_ports[0].push_data(ix);
+        input_ports[0].push_byte(ix);
         ++ix;
         gEvents.notify_event(input_event, 0);
     }
@@ -47,7 +47,7 @@ void ByteProblem::clock_tick_input() {
 
 void ByteProblem::clock_tick_output() {
     if (output_ports[0].has_data()) {
-        last_output = output_ports[0].get_data();
+        last_output = output_ports[0].get_byte();
         output_ports[0].pop_data();
         gEvents.notify_event(output_event, 0);
     }

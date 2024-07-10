@@ -263,14 +263,18 @@ void Button::set_text_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     text.set_text_color(r, g, b, a);
 }
 
-int Button::get_event() const { return event; }
+void Button::enable_hover(bool enable) {
+    hover_enabled = enable;
+}
+
+event_t Button::get_event() const { return event; }
 
 void Button::set_dpi_ratio(double ratio) { text.set_dpi_ratio(ratio); }
 
 void Button::render(const int x_offset, const int y_offset,
                     const WindowState &window_state) const {
-    bool hover = is_pressed(window_state.mouseX - x_offset,
-                            window_state.mouseY - y_offset);
+    bool hover = hover_enabled && is_pressed(window_state.mouseX - x_offset,
+                                             window_state.mouseY - y_offset);
     SDL_Rect r = {text.x + x_offset, text.y + y_offset, text.w, text.h};
     if (border) {
         SDL_SetRenderDrawColor(gRenderer, UI_BORDER_COLOR);
@@ -334,6 +338,13 @@ void Dropdown::render(int x_offset, int y_offset,
     }
 }
 
+void Dropdown::enable_hover(bool enable) {
+    base.enable_hover(enable);
+    for (auto& btn : choices) {
+        btn.enable_hover(enable);
+    }
+}
+
 void Dropdown::set_choices(const std::vector<std::string> &choices,
                            const WindowState &window_state) {
     this->choices.clear();
@@ -374,7 +385,7 @@ void Dropdown::set_choices(const std::vector<std::string> &choices,
     }
 }
 
-int Dropdown::get_event() const { return event; }
+event_t Dropdown::get_event() const { return event; }
 
 void Dropdown::set_dpi_ratio(double dpi) {
     base.set_dpi_ratio(dpi);

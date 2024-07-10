@@ -31,17 +31,10 @@ public:
     void tick(Uint64 delta, StateStatus &res) override;
 
 protected:
-    std::vector<Button> buttons;
-    std::vector<TextBox> text;
+    Components comps;
 
     // Set by subclasses to swap state
     StateStatus next_res;
-
-    /**
-     * Called when a button is pressed.
-     * The int btn will contain the index of the button in the buttons vector.
-     */
-    virtual void button_press(int btn) = 0;
 
     /**
      * Called when the Menu_exit input is recieved (Typicly Escape).

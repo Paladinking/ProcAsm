@@ -199,7 +199,9 @@ public:
 
     void set_text_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
-    int get_event() const;
+    void enable_hover(bool enable);
+
+    event_t get_event() const;
 
 private:
     Button(SDL_Rect rect, std::string text, const WindowState &ws, void*);
@@ -214,6 +216,7 @@ private:
 
     bool border = true;
     bool down = false;
+    bool hover_enabled = true;
 };
 
 class Dropdown {
@@ -238,12 +241,14 @@ public:
 
     void set_text_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
+    void enable_hover(bool enable);
+
     void set_dpi_ratio(double dpi);
 
     void set_choices(const std::vector<std::string> &choices,
                      const WindowState &window_state);
 
-    int get_event() const;
+    event_t get_event() const;
 
 private:
     bool show_list = false;
@@ -283,6 +288,15 @@ class Components {
 public:
     void set_window_state(WindowState* window_state) {
         this->window_state = window_state;
+    }
+
+    void enable_hover(bool enabled) {
+        for (auto& btn: std::get<std::vector<Button>>(comps)) {
+            btn.enable_hover(enabled);
+        }
+        for (auto& dropdown: std::get<std::vector<Dropdown>>(comps)) {
+            dropdown.enable_hover(enabled);
+        }
     }
 
     void set_dpi(double dpi_scale) {

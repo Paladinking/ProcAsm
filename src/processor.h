@@ -19,6 +19,11 @@ enum class ProcessorChange {
     REGISTER, IN_PORT, OUT_PORT, TICKS, RUNNING
 };
 
+
+struct ProcessorTemplate {
+    std::unordered_map<std::string, InstructionSlot> instruction_set;
+};
+
 class Processor {
 public:
     Processor(uint32_t register_count) noexcept;
@@ -49,9 +54,7 @@ private:
     std::uint32_t pc;
     std::uint64_t ticks;
 
-    bool zero_flag = false;
-
-    std::vector<uint8_t> gen_registers;
+    RegisterFile registers;
 
 };
 

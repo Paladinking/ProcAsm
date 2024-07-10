@@ -6,19 +6,6 @@
 #include <algorithm>
 #include <array>
 
-constexpr uint32_t NONE = 0;
-constexpr uint32_t GEN_REG = 1;
-constexpr uint32_t IN_PORT = 2;
-constexpr uint32_t OUT_PORT = 4;
-constexpr uint32_t LABEL = 8;
-constexpr uint32_t IMMU8 = 16;
-constexpr uint32_t IMMU16 = 32;
-constexpr uint32_t IMMU32 = 64;
-constexpr uint32_t IMMU64 = 128;
-constexpr uint32_t IMMS8 = 256;
-constexpr uint32_t IMMS16 = 512;
-constexpr uint32_t IMMS32 = 1024;
-constexpr uint32_t IMMS64 = 2048;
 
 
 uint64_t immu_max(uint32_t flags) {
@@ -134,17 +121,18 @@ bool read_int(const std::string& s, uint64_t max, int64_t& val) {
     return true;
 }
 
-Compiler::Compiler(uint32_t gen_reg_count, std::vector<std::string> in_ports, std::vector<std::string> out_ports,
-            std::vector<Instruction>& instructions, const std::unordered_map<std::string, InstuctionSlot>& instruction_set) :
-            gen_reg_count {gen_reg_count}, in_ports{std::move(in_ports)}, out_ports{std::move(out_ports)},
+Compiler::Compiler(const RegisterFile& registers, std::vector<std::string> in_ports, std::vector<std::string> out_ports,
+            std::vector<Instruction>& instructions, const std::unordered_map<std::string, InstructionSlot>& instruction_set) :
+            registers {registers}, in_ports{std::move(in_ports)}, out_ports{std::move(out_ports)},
             instructions{instructions}, instruction_set{instruction_set} {}
 
-Instruction Compiler::parse(InstuctionSlot slot, const std::string& line, const std::vector<std::pair<std::size_t, std::size_t>>& opers,
+Instruction Compiler::parse(InstructionSlot slot, const std::string& line, const std::vector<std::pair<std::size_t, std::size_t>>& opers,
                             std::unordered_map<std::string, uint32_t> labels, ErrorMsg& error) const {
     std::size_t i = 1;
     std::size_t slot_ix = 0;
     std::array<Operand, MAX_OPERANDS> out_operands {};
-    memset(out_operands.data(), 0, 4 * sizeof(Operand));
+    memset(out_operands.data(), 0, MAX_OPERANDS * sizeof(Operand));
+
     for (; i < opers.size(); ++i, ++slot_ix) {
         std::size_t start = opers[i].first;
         std::size_t len = opers[i].second;
@@ -159,11 +147,13 @@ Instruction Compiler::parse(InstuctionSlot slot, const std::string& line, const 
         }
         if ((slot.operands[slot_ix].type & GEN_REG) != 0) {
             uint64_t reg;
-            if (part[0] == 'R' && read_uint(part.c_str() + 1, gen_reg_count, reg)) {
+            DataSize reg_size;
+            if (registers.from_name(part, reg, reg_size)) {
                 out_operands[i - 1].type = GEN_REG;
                 out_operands[i - 1].reg = reg;
+                out_operands[i - 1].size = reg_size;
                 continue;
-            }
+            } 
         }
         if ((slot.operands[slot_ix].type & IN_PORT) != 0) {
             auto pos = std::find(in_ports.begin(), in_ports.end(), part);
@@ -234,7 +224,7 @@ Instruction Compiler::parse(InstuctionSlot slot, const std::string& line, const 
 
 
 
-std::unordered_map<std::string, InstuctionSlot> BASIC_INSTRUCTIONS = {
+std::unordered_map<std::string, InstructionSlot> BASIC_INSTRUCTIONS = {
     {"IN", {InstructionSlotType::IN, {{GEN_REG, true}, {IN_PORT, false}}}},
     {"OUT", {InstructionSlotType::OUT, {{GEN_REG, true}, {OUT_PORT, false}}}},
     {"MOV", {InstructionSlotType::MOVE_8, {{GEN_REG, true}, {GEN_REG | IMMU8, true}}}},

@@ -7,6 +7,19 @@
 #include <string>
 #include <unordered_map>
 
+constexpr uint32_t NONE = 0;
+constexpr uint32_t GEN_REG = 1;
+constexpr uint32_t IN_PORT = 2;
+constexpr uint32_t OUT_PORT = 4;
+constexpr uint32_t LABEL = 8;
+constexpr uint32_t IMMU8 = 16;
+constexpr uint32_t IMMU16 = 32;
+constexpr uint32_t IMMU32 = 64;
+constexpr uint32_t IMMU64 = 128;
+constexpr uint32_t IMMS8 = 256;
+constexpr uint32_t IMMS16 = 512;
+constexpr uint32_t IMMS32 = 1024;
+constexpr uint32_t IMMS64 = 2048;
 
 struct OperandSlot {
     uint32_t type;
@@ -23,24 +36,26 @@ struct ErrorMsg {
     bool empty = true;
 };
 
-struct InstuctionSlot {
+struct InstructionSlot {
     InstructionSlotType id;
     std::vector<OperandSlot> operands;
 };
 
-extern std::unordered_map<std::string, InstuctionSlot> BASIC_INSTRUCTIONS;
+extern std::unordered_map<std::string, InstructionSlot> BASIC_INSTRUCTIONS;
 
 class Compiler {
 public:
-    Compiler(uint32_t gen_reg_count, std::vector<std::string> in_ports, std::vector<std::string> out_ports,
-            std::vector<Instruction>& instructions, const std::unordered_map<std::string, InstuctionSlot>& instruction_set);
+    Compiler(const RegisterFile& registers, std::vector<std::string> in_ports, std::vector<std::string> out_ports,
+            std::vector<Instruction>& instructions, const std::unordered_map<std::string, InstructionSlot>& instruction_set);
     bool compile(const std::vector<std::string>& lines, std::vector<ErrorMsg>& errors);
 
 private:
-    Instruction parse(InstuctionSlot slot, const std::string& line, const std::vector<std::pair<std::size_t, std::size_t>>& opers,
+    Instruction parse(InstructionSlot slot, const std::string& line, const std::vector<std::pair<std::size_t, std::size_t>>& opers,
                       std::unordered_map<std::string, uint32_t> labels, ErrorMsg& error) const;
 
-    const std::unordered_map<std::string, InstuctionSlot>& instruction_set;
+
+    const RegisterFile& registers;
+    const std::unordered_map<std::string, InstructionSlot>& instruction_set;
     std::vector<Instruction>& instructions;
 
     std::vector<std::string> in_ports;

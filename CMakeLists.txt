@@ -16,6 +16,7 @@ set(ENGINGE_SRC
     ${ENGINE_DIR}/random.cpp
     ${ENGINE_DIR}/texture.cpp
     ${ENGINE_DIR}/ui.cpp
+    ${ENGINE_DIR}/menu.cpp
     ${ENGINE_DIR}/events.cpp
 )
 
@@ -26,7 +27,7 @@ set(FONT_OBJ ${CMAKE_CURRENT_BINARY_DIR}/font${CMAKE_C_OUTPUT_EXTENSION})
 
 add_executable(main src/main.cpp src/assembly.cpp src/editbox.cpp
                src/editlines.cpp src/compiler.cpp src/processor.cpp
-               src/problem.cpp src/processor_gui.cpp ${ENGINGE_SRC} ${FONT_OBJ})
+               src/problem.cpp src/processor_gui.cpp src/processor_menu.cpp ${ENGINGE_SRC} ${FONT_OBJ})
 
 add_custom_command(OUTPUT ${FONT_OBJ} ${PROJECT_SOURCE_DIR}/tools/font.h
         COMMAND embed ARGS ${FONT} -H ${PROJECT_SOURCE_DIR}/tools/font.h -o ${FONT_OBJ} -smono_font

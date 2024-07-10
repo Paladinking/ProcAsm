@@ -17,9 +17,9 @@ public:
 
     void register_events();
 
-    ForwardingOutputPort<uint8_t>* get_input_port(std::size_t ix);
+    ByteInputSlot<uint8_t>* get_input_port(std::size_t ix);
 
-    ForwardingInputPort<uint8_t>* get_output_port(std::size_t ix);
+    ByteOutputSlot<uint8_t>* get_output_port(std::size_t ix);
 
     void clock_tick_input();
 
@@ -35,8 +35,8 @@ private:
 
     int16_t last_output;
 
-    std::vector<ForwardingOutputPort<uint8_t>> input_ports;
-    std::vector<ForwardingInputPort<uint8_t>> output_ports;
+    std::vector<ByteInputSlot<uint8_t>> input_ports;
+    std::vector<ByteOutputSlot<uint8_t>> output_ports;
 
     event_t input_event;
     event_t output_event;
