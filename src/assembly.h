@@ -40,7 +40,7 @@ private:
 
     std::unique_ptr<EventScope> scope;
 
-    Processor processor {4};
+    Processor processor {ProcessorTemplate{}.instantiate()};
     ByteProblem problem {};
     ProcessorGui processor_gui{};
 

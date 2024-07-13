@@ -9,6 +9,8 @@ enum class PortDatatype {
     BYTE, WORD, DWORD, QWORD
 };
 
+
+
 constexpr inline std::size_t get_byte_size(PortDatatype type) {
     switch (type) {
         case PortDatatype::BYTE:
@@ -41,6 +43,17 @@ enum class PortType {
     BLOCKING
 };
 
+class BytePort;
+
+struct PortTemplate {
+    std::string name;
+
+    PortDatatype data_type;
+    PortType port_type;
+
+    std::unique_ptr<BytePort> instantiate() const;
+};
+
 template<class T>
 constexpr bool is_valid_type() {
     return std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> ||
@@ -52,16 +65,26 @@ class BytePort {
     const PortDatatype output_type {};
 
     const std::string name;
-
+protected:
+    event_t event = NULL_EVENT;
 public:
+    BytePort(std::string name, PortDatatype in, PortDatatype out) :
+        name{std::move(name)}, input_type{in}, output_type{out} {}
+
     // Returns the type of input
     PortDatatype get_input_type() const noexcept { return input_type; }
 
     // Returns the type of output
     PortDatatype get_output_type() const noexcept { return output_type; }
 
-    BytePort(std::string name, PortDatatype in, PortDatatype out) :
-        name{std::move(name)}, input_type{in}, output_type{out} {}
+    event_t register_event() noexcept {
+        event = gEvents.register_event(EventType::UNIFIED);
+        return event;
+    }
+
+    event_t get_event() {
+        return event;
+    }
 
     virtual ~BytePort() = default;
 
@@ -73,7 +96,7 @@ public:
 
     template<class T>
     T get() const noexcept {
-        static_assert(false, "Not specialized");
+        static_assert(is_valid_type<T>, "Not specialized");
     }
 
     template<>
@@ -104,7 +127,7 @@ public:
 
     template<class T>
     void push(T t) noexcept {
-        static_assert(false, "Not specialized");
+        static_assert(is_valid_type<T>, "Not specialized");
     }
 
     template<>
@@ -129,12 +152,6 @@ public:
     }
 };
 
-struct PortTemplate {
-    std::string name;
-
-    PortDatatype data_type;
-    PortType port_type;
-};
 
 class NullBytePort final : public BytePort {
 public:
@@ -261,15 +278,6 @@ public:
     BlockingBytePort(const std::string& name) : BytePort(name, from_c_type<T>(), from_c_type<T>()),
                                                 element{}, empty{true} {}
 
-    int register_event() {
-        event = gEvents.register_event(EventType::UNIFIED);
-        return event;
-    }
-
-    event_t get_event() {
-        return event;
-    }
-
     bool has_data() const noexcept override {
         return !empty;
     }
@@ -325,7 +333,21 @@ private:
     T element;
     bool empty;
 
-    event_t event = NULL_EVENT;
 };
 
+inline std::unique_ptr<BytePort> PortTemplate::instantiate() const {
+    if (port_type == PortType::BLOCKING) {
+        switch (data_type) {
+            case PortDatatype::BYTE:
+                return std::make_unique<BlockingBytePort<uint8_t>>(name);
+            case PortDatatype::WORD:
+                return std::make_unique<BlockingBytePort<uint16_t>>(name);
+            case PortDatatype::DWORD:
+                return std::make_unique<BlockingBytePort<uint32_t>>(name);
+            case PortDatatype::QWORD:
+                return std::make_unique<BlockingBytePort<uint64_t>>(name);
+        }
+    }
+    return {};
+}
 #endif

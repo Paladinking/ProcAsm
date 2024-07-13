@@ -59,11 +59,11 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
     };
 
     Callback_u outport_change = [](uint64_t port, ProcessorGui* gui) {
-        gui->out_ports[port * 2 + 1]->set_text(gui->processor->out_ports[port].format());
+        gui->out_ports[port * 2 + 1]->set_text(gui->processor->out_ports[port]->format());
     };
 
     Callback_u inport_change = [](uint64_t port, ProcessorGui* gui) {
-        gui->in_ports[port * 2 + 1]->set_text(gui->processor->in_ports[port].format());
+        gui->in_ports[port * 2 + 1]->set_text(gui->processor->in_ports[port]->format());
     };
 
     Callback_u ticks_change = [](uint64_t ticks, ProcessorGui* gui) {
@@ -108,12 +108,12 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
     flags->set_align(Alignment::LEFT);
 
     for (uint32_t i = 0; i < processor->in_ports.size(); ++i) {
-        int event = processor->in_ports[i].get_event();
+        int event = processor->in_ports[i]->get_event();
         gEvents.register_callback(event, inport_change,
                                                static_cast<uint64_t>(i), this);
 
-        std::string s = processor->in_ports[i].format();
-        std::string name = "In " + processor->in_ports[i].get_name();
+        std::string s = processor->in_ports[i]->format();
+        std::string name = "In " + processor->in_ports[i]->get_name();
         auto box = comps.add(TextBox(30 + 110 * i, -50, 80, BOX_LINE_HEIGHT, name, *window_state));
         in_ports.push_back(box);
         box = comps.add(TextBox(30 + 110 * i, -50 + BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, s, *window_state));
@@ -121,11 +121,11 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
         comps.add(Box(30 + 110 * i, -60, 80, 60, 2));
     }
     for (uint32_t i = 0; i < processor->out_ports.size(); ++i) {
-        int event = processor->out_ports[i].get_event();
+        event_t event = processor->out_ports[i]->get_event();
         gEvents.register_callback(event, outport_change,
                                                static_cast<uint64_t>(i), this);
 
-        std::string name = "Out " + processor->out_ports[i].get_name();
+        std::string name = "Out " + processor->out_ports[i]->get_name();
         auto box = comps.add(TextBox(30 + 110 * i, BOX_SIZE + 10, 80, BOX_LINE_HEIGHT, name, *window_state));
         out_ports.push_back(box);
         box = comps.add(TextBox(30 + 110 * i, BOX_SIZE + 10 + BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, "", *window_state));
@@ -145,7 +145,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
 
         if (select != -1) {
             port = gui->inputport_map[ix][select];
-            auto* p = &gui->processor->in_ports[port];
+            auto* p = gui->processor->in_ports[port].get();
             auto* ptr = gui->problem->input_ports[ix].check_port(p);
             gui->problem->input_ports[ix].set_port(ptr);
             gui->input_wires[ix]->set_points({
@@ -172,7 +172,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
                 gui->input_wires[i]->set_points({});
                 continue;
             } 
-            auto* p = &gui->processor->in_ports[port_i];
+            auto* p = gui->processor->in_ports[port_i].get();
             auto* ptr = gui->problem->input_ports[i].check_port(p);
             gui->problem->input_ports[i].set_port(ptr);
         }
@@ -188,7 +188,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
 
         if (select != -1) {
             port = gui->outputport_map[ix][select];
-            auto* p = &gui->processor->out_ports[port];
+            auto* p = gui->processor->out_ports[port].get();
             auto* ptr = gui->problem->output_ports[ix].check_port(p);
             gui->problem->output_ports[ix].set_port(ptr);
             LOG_DEBUG("%d, %d", ix, gui->output_wires.size());
@@ -215,7 +215,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
                 dropdowns[i]->clear_choice();
                 continue;
             } 
-            auto* p = &gui->processor->out_ports[port_i];
+            auto* p = gui->processor->out_ports[port_i].get();
             auto* ptr = gui->problem->output_ports[i].check_port(p);
             gui->problem->output_ports[i].set_port(ptr);
         }
@@ -235,7 +235,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
 
         std::vector<std::string> port_names {};
         for (int j = 0; j < processor->in_ports.size(); ++j) {
-            auto* port = &processor->in_ports[j];
+            auto* port = processor->in_ports[j].get();
             BytePort* p = problem->input_ports[i].check_port(port);
             if (p != nullptr) {
                 port_names.push_back(port->get_name());
@@ -259,7 +259,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
 
         std::vector<std::string> port_names {};
         for (int j = 0; j < processor->out_ports.size(); ++j) {
-            auto* port = &processor->out_ports[j];
+            auto* port = processor->out_ports[j].get();
             BytePort* p = problem->output_ports[i].check_port(port);
             if (p != nullptr) {
                 port_names.push_back(port->get_name());

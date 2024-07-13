@@ -4,7 +4,6 @@
 #include "event_id.h"
 #include "compiler.h"
 #include <vector>
-#include <functional>
 #include "ports.h"
 
 #ifndef PROC_GUI_HEAD
@@ -19,14 +18,23 @@ enum class ProcessorChange {
     REGISTER, IN_PORT, OUT_PORT, TICKS, RUNNING
 };
 
+class Processor;
 
 struct ProcessorTemplate {
-    std::unordered_map<std::string, InstructionSlot> instruction_set;
+    std::vector<PortTemplate> in_ports {};
+    std::vector<PortTemplate> out_ports {};
+
+    RegisterNames register_names {};
+
+    InstructionSet instruction_set {};
+
+    Processor instantiate() const;
 };
 
 class Processor {
 public:
-    Processor(uint32_t register_count) noexcept;
+    Processor(std::vector<std::unique_ptr<BytePort>> in_ports, std::vector<std::unique_ptr<BytePort>> out_ports,
+              InstructionSet instruction_set, RegisterFile registers) noexcept;
 
     bool compile_program(std::vector<std::string> lines, std::vector<ErrorMsg>& errors);
 
@@ -47,9 +55,12 @@ private:
     bool valid = false;
     bool running = false;
 
-    std::vector<BlockingBytePort<uint8_t>> in_ports {{"A"}, {"B"}};
-    std::vector<BlockingBytePort<uint8_t>> out_ports {{"Z"}};
+    std::vector<std::unique_ptr<BytePort>> in_ports;
+    std::vector<std::unique_ptr<BytePort>> out_ports;
+
     std::vector<Instruction> instructions {};
+
+    InstructionSet instruction_set;
 
     std::uint32_t pc;
     std::uint64_t ticks;

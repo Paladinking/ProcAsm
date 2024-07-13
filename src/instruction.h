@@ -49,10 +49,14 @@ struct Instruction {
     uint64_t line;
 };
 
+typedef uint32_t flag_t;
+constexpr flag_t FLAG_ZERO = 1;
+
+typedef std::vector<std::pair<std::string, DataSize>> RegisterNames;
 
 class RegisterFile {
 public:
-    RegisterFile(uint16_t byte, uint16_t word, uint16_t dword, uint16_t qword);
+    RegisterFile(RegisterNames register_names);
 
     uint64_t gen_reg_count() const;
 
@@ -64,11 +68,12 @@ public:
 
     void clear();
 
-    std::string to_name(uint64_t ix) const;
+    const std::string& to_name(uint64_t ix) const;
 
-    bool zero_flag = false;
+    flag_t enabled_flags;
+    flag_t flags = 0;
 private:
-    uint16_t byte_regs, word_regs, dword_regs, qword_regs;
+    RegisterNames register_names;
 
     std::vector<uint64_t> gen_registers {};
 

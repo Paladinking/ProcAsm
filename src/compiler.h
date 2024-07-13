@@ -41,12 +41,14 @@ struct InstructionSlot {
     std::vector<OperandSlot> operands;
 };
 
-extern std::unordered_map<std::string, InstructionSlot> BASIC_INSTRUCTIONS;
+typedef std::unordered_map<std::string, InstructionSlot> InstructionSet;
+
+extern InstructionSet BASIC_INSTRUCTIONS;
 
 class Compiler {
 public:
     Compiler(const RegisterFile& registers, std::vector<std::string> in_ports, std::vector<std::string> out_ports,
-            std::vector<Instruction>& instructions, const std::unordered_map<std::string, InstructionSlot>& instruction_set);
+            std::vector<Instruction>& instructions, const InstructionSet& instruction_set);
     bool compile(const std::vector<std::string>& lines, std::vector<ErrorMsg>& errors);
 
 private:
@@ -55,7 +57,7 @@ private:
 
 
     const RegisterFile& registers;
-    const std::unordered_map<std::string, InstructionSlot>& instruction_set;
+    const InstructionSet& instruction_set;
     std::vector<Instruction>& instructions;
 
     std::vector<std::string> in_ports;
