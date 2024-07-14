@@ -19,17 +19,18 @@ enum class InstructionType {
     IN = 0,
     OUT = 1,
     MOVE_REG = 2,
-    MOVE_IMM = 3,
-    ADD = 4,
-    SUB = 5,
-    JEZ = 6, 
-    NOP = 7
+    MOVE_IMM = 7,
+    ADD = 3,
+    SUB = 4,
+    JEZ = 5, 
+    NOP = 6
 };
 
 // Only here and not in complier since it should closely match InstructionType
 enum class InstructionSlotType {
-    IN = 0, OUT = 1, MOVE_8 = 2, ADD = 4, SUB = 5, JEZ = 6, NOP = 7
+    IN = 0, OUT = 1, MOVE_8 = 2, ADD = 3, SUB = 4, JEZ = 5, NOP = 6
 };
+constexpr uint32_t INSTRUCTION_SLOT_COUNT = 7;
 
 struct Operand {
     uint32_t type;

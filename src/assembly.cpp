@@ -94,6 +94,9 @@ void GameState::init(WindowState *window_state) {
     scope = gEvents.begin_scope();
 
     EventId::MENU_CHANGE = gEvents.register_event(EventType::UNIFIED);
+    EventId::REGISTER_CHANGED = gEvents.register_event(EventType::UNIFIED_VEC, MAX_REGISTERS);
+    EventId::TICKS_CHANGED = gEvents.register_event(EventType::UNIFIED);
+    EventId::RUNNING_CHANGED = gEvents.register_event(EventType::UNIFIED);
 
     box.~Editbox();
     new (&box)Editbox{BOX_X, BOX_Y, *window_state };

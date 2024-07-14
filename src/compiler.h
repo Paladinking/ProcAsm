@@ -41,7 +41,7 @@ struct InstructionSlot {
     std::vector<OperandSlot> operands;
 };
 
-typedef std::unordered_map<std::string, InstructionSlot> InstructionSet;
+typedef std::unordered_map<std::string, InstructionSlotType> InstructionSet;
 
 extern InstructionSet BASIC_INSTRUCTIONS;
 
@@ -52,7 +52,7 @@ public:
     bool compile(const std::vector<std::string>& lines, std::vector<ErrorMsg>& errors);
 
 private:
-    Instruction parse(InstructionSlot slot, const std::string& line, const std::vector<std::pair<std::size_t, std::size_t>>& opers,
+    Instruction parse(InstructionSlotType slot, const std::vector<OperandSlot>& slot_opers, const std::string& line, const std::vector<std::pair<std::size_t, std::size_t>>& opers,
                       std::unordered_map<std::string, uint32_t> labels, ErrorMsg& error) const;
 
 

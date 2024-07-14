@@ -26,7 +26,7 @@ set(FONT ${CMAKE_SOURCE_DIR}/flexi-ibm-vga-true.regular.ttf)
 set(FONT_OBJ ${CMAKE_CURRENT_BINARY_DIR}/font${CMAKE_C_OUTPUT_EXTENSION})
 
 add_executable(main src/main.cpp src/assembly.cpp src/editbox.cpp
-               src/editlines.cpp src/compiler.cpp src/processor.cpp
+               src/editlines.cpp src/compiler.cpp src/processor.cpp src/json.cpp
                src/problem.cpp src/processor_gui.cpp src/processor_menu.cpp ${ENGINGE_SRC} ${FONT_OBJ})
 
 add_custom_command(OUTPUT ${FONT_OBJ} ${PROJECT_SOURCE_DIR}/tools/font.h

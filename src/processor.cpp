@@ -1,6 +1,7 @@
 #include "processor.h"
 #include "engine/engine.h"
 #include "engine/log.h"
+#include "json.h"
 #include <string>
 
 RegisterFile::RegisterFile(RegisterNames names)
@@ -58,6 +59,17 @@ const std::string &RegisterFile::to_name(uint64_t ix) const {
     return register_names[ix].first;
 }
 
+bool ProcessorTemplate::read_from_json(std::string& str) {
+    try {
+        JsonObject obj = json::read_from_string(str);
+
+
+        return true;
+    } catch (json_exception& e) {
+        return false;
+    }
+}
+
 Processor ProcessorTemplate::instantiate() const {
     std::vector<std::unique_ptr<BytePort>> in{}, out{};
     for (auto i : in_ports) {
@@ -69,6 +81,19 @@ Processor ProcessorTemplate::instantiate() const {
 
     return {std::move(in), std::move(out), instruction_set, register_names};
 }
+
+ProcessorTemplate DEFAULT_TEMPLATE {
+    "The basic",
+    {{"A", PortDatatype::BYTE, PortType::BLOCKING},
+     {"B", PortDatatype::BYTE, PortType::BLOCKING}},
+
+    {{"Z", PortDatatype::BYTE, PortType::BLOCKING}},
+
+    {{"R0", DataSize::BYTE},
+     {"R1", DataSize::BYTE},
+     {"R2", DataSize::BYTE},
+     {"R3", DataSize::BYTE}},
+    BASIC_INSTRUCTIONS};
 
 Processor::Processor(std::vector<std::unique_ptr<BytePort>> in_ports,
                      std::vector<std::unique_ptr<BytePort>> out_ports,
@@ -86,10 +111,10 @@ bool Processor::compile_program(const std::vector<std::string> lines,
     LOG_DEBUG("COMPILE called");
     std::vector<std::string> in_names;
     std::vector<std::string> out_names;
-    for (auto& port : in_ports) {
+    for (auto &port : in_ports) {
         in_names.push_back(port->get_name());
     }
-    for (auto& port : out_ports) {
+    for (auto &port : out_ports) {
         out_names.push_back(port->get_name());
     }
     Compiler c{registers, std::move(in_names), std::move(out_names),
@@ -227,10 +252,6 @@ event_t EventId::TICKS_CHANGED = 0;
 event_t EventId::RUNNING_CHANGED = 0;
 
 void Processor::register_events() {
-    EventId::REGISTER_CHANGED =
-        gEvents.register_event(EventType::UNIFIED_VEC, MAX_REGISTERS);
-    EventId::TICKS_CHANGED = gEvents.register_event(EventType::UNIFIED);
-    EventId::RUNNING_CHANGED = gEvents.register_event(EventType::UNIFIED);
     for (auto &port : in_ports) {
         port->register_event();
     }

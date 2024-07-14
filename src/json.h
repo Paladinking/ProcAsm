@@ -24,6 +24,7 @@ namespace json {
 
 struct Type {
     enum { OBJECT, LIST, INTEGER, DOUBLE, BOOL, STRING, JSON_NULL } type;
+
 private:
     struct DummyObj {
         union {
@@ -52,29 +53,26 @@ private:
     };
 
     void free();
+
 public:
     Type();
-    Type(const Type& other);
-    Type(Type&& other);
-    Type& operator=(const Type& other);
-    Type& operator=(Type&& other);
+    Type(const Type &other);
+    Type(Type &&other);
+    Type &operator=(const Type &other);
+    Type &operator=(Type &&other);
     ~Type();
 
-    template <class T>
-    T* get();
+    template <class T> T *get();
 
-    template <class T>
-    const T* get() const;
+    template <class T> const T *get() const;
 
-    template <class T>
-    void set(T t);
-
+    template <class T> void set(T t);
 };
 
 /**
  * Reads a JsonObject from a string.
  */
-JsonObject read_from_string(const std::string& in);
+JsonObject read_from_string(const std::string &in);
 
 /**
  * Writes a JsonObject to a string, in prettified form with indentations and
@@ -282,32 +280,32 @@ static_assert(alignof(JsonList) == 8, "Change json::Type to match");
 
 namespace json {
 
-    template <> const JsonObject* Type::get() const;
-    template <> const JsonList* Type::get() const;
-    template <> const std::string* Type::get() const;
-    template <> const int64_t* Type::get() const;
-    template <> const double* Type::get() const;
-    template <> const bool* Type::get() const;
+template <> const JsonObject *Type::get() const;
+template <> const JsonList *Type::get() const;
+template <> const std::string *Type::get() const;
+template <> const int64_t *Type::get() const;
+template <> const double *Type::get() const;
+template <> const bool *Type::get() const;
 
-    template <> void Type::set(JsonObject obj);
-    template <> void Type::set(JsonList list);
-    template <> void Type::set(std::string s);
-    template <> void Type::set(int64_t i);
-    template <> void Type::set(double d);
-    template <> void Type::set(bool b);
-    template <> void Type::set(std::nullptr_t n);
+template <> void Type::set(JsonObject obj);
+template <> void Type::set(JsonList list);
+template <> void Type::set(std::string s);
+template <> void Type::set(int64_t i);
+template <> void Type::set(double d);
+template <> void Type::set(bool b);
+template <> void Type::set(std::nullptr_t n);
 
-    template <class T> void Type::set(T t) {
-        static_assert(std::is_same_v<T, JsonObject>, "Not a valid json type");
-    }
+template <class T> void Type::set(T t) {
+    static_assert(std::is_same_v<T, JsonObject>, "Not a valid json type");
+}
 
-    template <class T> const T *Type::get() const {
-        static_assert(std::is_same_v<T, JsonObject>, "Not a valid json type");
-    }
+template <class T> const T *Type::get() const {
+    static_assert(std::is_same_v<T, JsonObject>, "Not a valid json type");
+}
 
-    template <class T> T *Type::get() {
-        return const_cast<T *>(const_cast<const Type *>(this)->get<T>());
-    }
+template <class T> T *Type::get() {
+    return const_cast<T *>(const_cast<const Type *>(this)->get<T>());
+}
 
 } // namespace json
 

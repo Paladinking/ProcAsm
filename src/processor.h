@@ -21,6 +21,8 @@ enum class ProcessorChange {
 class Processor;
 
 struct ProcessorTemplate {
+    std::string name;
+
     std::vector<PortTemplate> in_ports {};
     std::vector<PortTemplate> out_ports {};
 
@@ -28,8 +30,12 @@ struct ProcessorTemplate {
 
     InstructionSet instruction_set {};
 
+    bool read_from_json(std::string& str);
+
     Processor instantiate() const;
 };
+
+extern ProcessorTemplate DEFAULT_TEMPLATE;
 
 class Processor {
 public:
