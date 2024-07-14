@@ -30,6 +30,8 @@ enum class InstructionType {
 enum class InstructionSlotType {
     IN = 0, OUT = 1, MOVE_8 = 2, ADD = 3, SUB = 4, JEZ = 5, NOP = 6
 };
+
+
 constexpr uint32_t INSTRUCTION_SLOT_COUNT = 7;
 
 struct Operand {

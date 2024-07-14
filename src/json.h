@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <cstdint>
 
 /**
  * json_exception, for when reading a json file fails.
@@ -26,6 +27,14 @@ struct Type {
     enum { OBJECT, LIST, INTEGER, DOUBLE, BOOL, STRING, JSON_NULL } type;
 
 private:
+    /*
+     * There is a circular dependency decleration of this class and
+     * JsonObject: the iterator types for std::unordered_map cannot
+     * requres complete type of Type just to be in a return type.
+     *
+     * This gets around it by keeping structs with same size and alignment,
+     * and using placement new + excplicit destructor calls + reinterpret_cast.
+     */
     struct DummyObj {
         union {
             unsigned char data[104];
@@ -114,7 +123,7 @@ public:
      * Gets a value of type T with key key from the object.
      */
     template <class T> T &get(const std::string &key);
-    template <class T> const T &get(const std::string &key);
+    template <class T> const T &get(const std::string &key) const;
 
     /**
      * Gets a value of type T with key key from the object.
@@ -310,10 +319,10 @@ template <class T> T *Type::get() {
 } // namespace json
 
 template <class T> T &JsonObject::get(const std::string &key) {
-    return *data[key].get<T>();
+    return *data.at(key).get<T>();
 }
-template <class T> const T &JsonObject::get(const std::string &key) {
-    return *data[key].get<T>();
+template <class T> const T &JsonObject::get(const std::string &key) const {
+    return *data.at(key).get<T>();
 }
 
 template <class T>

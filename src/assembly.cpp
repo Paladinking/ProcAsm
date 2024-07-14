@@ -4,7 +4,7 @@
 #include "config.h"
 #include "processor_menu.h"
 
-GameState::GameState() : State() {}
+GameState::GameState(ProcessorTemplate temp) : State(), processor{temp.instantiate()} {}
 
 void GameState::set_font_size() {
     // This is very cursed, but works on windows with the current font for sizes 1.0, 1.25, 1.5 and 1.75

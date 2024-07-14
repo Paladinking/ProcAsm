@@ -9,10 +9,28 @@ typedef void(*Callback_i)(int64_t, ProcessorGui*);
 ProcessorGui::ProcessorGui() {}
 ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, int y, WindowState* window_state) : processor{processor},
     problem{problem}, x{x}, y{y}, window_state{window_state} {
+        comps.set_window_state(window_state);
+        set_processor(processor);
+}
+
+void ProcessorGui::set_processor(Processor* new_processor) {
+    this->processor = new_processor;
+    problem_inputs.clear();
+    problem_outputs.clear();
+    dropdowns.clear();
+
+    input_wires.clear();
+    output_wires.clear();
+    registers.clear();
+
+    in_ports.clear();
+    out_ports.clear(); 
+    comps.clear();
+
+    event_scope = gEvents.begin_scope();
 
     processor->register_events();
     problem->register_events();
-    comps.set_window_state(window_state);
 
     Callback_u menu_toggle = [](uint64_t show_menu, ProcessorGui* gui) {
         gui->comps.enable_hover(show_menu == 0);
@@ -275,6 +293,7 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
 
     processor_info = comps.add(Button(BOX_SIZE + 20, 20, 40, 40, "i", *window_state));
 
+    gEvents.finalize_scope();
 }
 
 void ProcessorGui::render() const {

@@ -286,6 +286,14 @@ class Components {
     friend class Component;
 
 public:
+    void clear() {
+        std::get<0>(comps).clear();
+        std::get<1>(comps).clear();
+        std::get<2>(comps).clear();
+        std::get<3>(comps).clear();
+        std::get<4>(comps).clear();
+    }
+
     void set_window_state(WindowState* window_state) {
         this->window_state = window_state;
     }
@@ -363,10 +371,6 @@ public:
 
 private:
     WindowState* window_state = nullptr;
-
-    struct TaggedPtrBase {
-        virtual ~TaggedPtrBase() = default;
-    };
 
     std::tuple<std::vector<Box>, std::vector<Polygon>, std::vector<TextBox>, std::vector<Button>,
                std::vector<Dropdown>>

@@ -3,13 +3,13 @@
 #include <string>
 #include <type_traits>
 #include "engine/engine.h"
+#include "engine/log.h"
+#include "json.h"
 #include "cassert"
 
 enum class PortDatatype {
     BYTE, WORD, DWORD, QWORD
 };
-
-
 
 constexpr inline std::size_t get_byte_size(PortDatatype type) {
     switch (type) {
@@ -50,6 +50,52 @@ struct PortTemplate {
 
     PortDatatype data_type;
     PortType port_type;
+
+    bool read_from_json(const JsonObject& obj) {
+        if (!obj.has_key_of_type<std::string>("name")) {
+            return false;
+        }
+        if (!obj.has_key_of_type<std::string>("data_type")) {
+            return false;
+        }
+        if (!obj.has_key_of_type<std::string>("port_type")) {
+            return false;
+        }
+        name = obj.get<std::string>("name");
+        const std::string& dt = obj.get<std::string>("data_type");
+        const std::string& pt = obj.get<std::string>("port_type");
+        auto eq = [](const std::string& a, const std::string& b) -> bool {
+            if (a.size() != b.size()) {
+                return false;
+            }
+            for (std::size_t i = 0; i < a.size(); ++i) {
+                if (std::toupper(a[i]) != b[i]) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if (eq(dt, "WORD")) {
+            data_type = PortDatatype::WORD;
+        } else if (eq(dt, "DWORD")) {
+            data_type = PortDatatype::DWORD;
+        } else if (eq(dt, "QWORD")) {
+            data_type = PortDatatype::QWORD;
+        } else if (eq(dt, "BYTE")) {
+            data_type = PortDatatype::BYTE;
+        } else {
+            LOG_WARNING("Invalid port data type '%s'", dt.c_str());
+            data_type = PortDatatype::BYTE;
+        }
+        if (eq(pt, "BLOCKING")) {
+            port_type = PortType::BLOCKING;
+        } else {
+            LOG_WARNING("Invalid port type '%s'", pt.c_str());
+            port_type = PortType::BLOCKING;
+        }
+
+        return true;
+    }
 
     std::unique_ptr<BytePort> instantiate() const;
 };
@@ -94,20 +140,6 @@ public:
 
     virtual void flush() noexcept = 0;
 
-    template<class T>
-    T get() const noexcept {
-        static_assert(is_valid_type<T>, "Not specialized");
-    }
-
-    template<>
-    uint8_t get() const noexcept { return get_byte(); }
-    template<>
-    uint16_t get() const noexcept { return get_word(); }
-    template<>
-    uint32_t get() const noexcept { return get_dword(); }
-    template<>
-    uint64_t get() const noexcept { return get_qword(); }
-
     std::string format() const noexcept {
         if (has_data()) {
             return std::to_string(get_qword());
@@ -124,20 +156,6 @@ public:
     virtual uint64_t get_qword() const noexcept { return 0; }
 
     virtual bool has_space() const noexcept = 0;
-
-    template<class T>
-    void push(T t) noexcept {
-        static_assert(is_valid_type<T>, "Not specialized");
-    }
-
-    template<>
-    void push(uint8_t v) noexcept { push_byte(v); } 
-    template<>
-    void push(uint16_t v) noexcept { push_word(v); } 
-    template<>
-    void push(uint32_t v) noexcept { push_dword(v); } 
-    template<>
-    void push(uint64_t v) noexcept { push_qword(v); } 
 
     virtual void push_byte(uint8_t v) noexcept {}
 
@@ -181,10 +199,6 @@ public:
             return nullptr;
         }
         return out_port;
-    }
-
-    T get() const noexcept {
-        return port->get<T>();
     }
 
     uint8_t get_byte() const noexcept {
@@ -244,8 +258,6 @@ public:
     }
 
     bool has_space() const noexcept { return port->has_space(); }
-
-    void push(T t) noexcept { port->push<T>(t); }
 
     void push_byte(uint8_t v) noexcept { port->push_byte(v); }
 

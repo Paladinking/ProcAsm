@@ -1,6 +1,7 @@
 #include "editlines.h"
 #include <sstream>
 #include <climits>
+#include <algorithm>
 #include "config.h"
 
 bool TextPosition::operator<(const TextPosition &other) const {

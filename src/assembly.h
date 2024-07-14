@@ -8,7 +8,7 @@
 
 class GameState : public State {
 public:
-    GameState();
+    GameState(ProcessorTemplate proc);
 
     void init(WindowState* state) override;
 
@@ -40,7 +40,7 @@ private:
 
     std::unique_ptr<EventScope> scope;
 
-    Processor processor {DEFAULT_TEMPLATE.instantiate()};
+    Processor processor;
     ByteProblem problem {};
     ProcessorGui processor_gui{};
 

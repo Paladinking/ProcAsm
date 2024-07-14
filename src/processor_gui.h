@@ -16,6 +16,8 @@ public:
 
     void render() const;
 
+    void set_processor(Processor* processor);
+
     void set_dpi(double dpi_scale);
 
     void mouse_change(bool press);
@@ -23,6 +25,8 @@ public:
     Component<Button> processor_info {};
     Component<Button> problem_info {};
 private:
+    std::unique_ptr<EventScope> event_scope {};
+
     Processor* processor {nullptr};
     ByteProblem* problem {nullptr};
 

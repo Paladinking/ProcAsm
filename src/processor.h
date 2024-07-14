@@ -2,6 +2,7 @@
 #define PROC_ASM_PROCESSOR_H
 #include "instruction.h"
 #include "event_id.h"
+#include "json.h"
 #include "compiler.h"
 #include <vector>
 #include "ports.h"
@@ -30,12 +31,10 @@ struct ProcessorTemplate {
 
     InstructionSet instruction_set {};
 
-    bool read_from_json(std::string& str);
+    bool read_from_json(const JsonObject& obj);
 
     Processor instantiate() const;
 };
-
-extern ProcessorTemplate DEFAULT_TEMPLATE;
 
 class Processor {
 public:

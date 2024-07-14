@@ -324,6 +324,10 @@ bool Compiler::compile(const std::vector<std::string> &lines,
         }
     }
     row = -1;
+    LOG_DEBUG("Size: %d", instruction_set.size());
+    for (auto& s: instruction_set) {
+        LOG_DEBUG("INST: %s", s.first.c_str());
+    }
     for (auto &line : lines) {
         ++row;
         std::size_t label_size;
@@ -335,6 +339,7 @@ bool Compiler::compile(const std::vector<std::string> &lines,
         for (auto &c : instr) {
             c = std::toupper(c);
         }
+        LOG_DEBUG("I: %s", instr.c_str());
         auto val = instruction_set.find(instr);
         if (val == instruction_set.end()) {
             errors.emplace_back(

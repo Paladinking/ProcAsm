@@ -59,15 +59,95 @@ const std::string &RegisterFile::to_name(uint64_t ix) const {
     return register_names[ix].first;
 }
 
-bool ProcessorTemplate::read_from_json(std::string& str) {
-    try {
-        JsonObject obj = json::read_from_string(str);
 
+InstructionSlotType instruction_from_ix(int64_t i) {
+    if (i >= static_cast<int64_t>(InstructionSlotType::NOP) || i < 0) {
+        return InstructionSlotType::NOP;
+    }
+    return static_cast<InstructionSlotType>(i);
+}
 
-        return true;
-    } catch (json_exception& e) {
+bool ProcessorTemplate::read_from_json(const JsonObject& obj) {
+    if (!obj.has_key_of_type<std::string>("name")) {
         return false;
     }
+    if (!obj.has_key_of_type<JsonList>("in_ports")) {
+        return false;
+    }
+    if (!obj.has_key_of_type<JsonList>("out_ports")) {
+        return false;
+    }
+    if (!obj.has_key_of_type<JsonList>("registers")) {
+        return false;
+    }
+    if (!obj.has_key_of_type<JsonObject>("instructions")) {
+        return false;
+    }
+    const JsonList& in_ports = obj.get<JsonList>("in_ports");
+    for (const auto& val: in_ports) {
+        if (const JsonObject* port = val.get<JsonObject>()) {
+            PortTemplate t;
+            if (!t.read_from_json(*port)) {
+                continue;
+            }
+            this->in_ports.push_back(t);
+        }
+    }
+    const JsonList& out_ports = obj.get<JsonList>("out_ports");
+    for (const auto& val: out_ports) {
+        if (const JsonObject* port = val.get<JsonObject>()) {
+            PortTemplate t;
+            if (!t.read_from_json(*port)) {
+                continue;
+            }
+            this->out_ports.push_back(t);
+        }
+    }
+    const JsonList& registers = obj.get<JsonList>("registers");
+    for (const auto& val: registers) {
+        if (const JsonObject* reg = val.get<JsonObject>()) {
+            if (!reg->has_key_of_type<std::string>("name")) {
+                continue;
+            }
+            if (!reg->has_key_of_type<std::string>("type")) {
+                continue;
+            }
+            std::string name = reg->get<std::string>("name");
+            for (auto& c: name) {
+                c = std::toupper(c);
+            }
+            std::string type = reg->get<std::string>("type");
+            for (auto& c: type) {
+                c = std::toupper(c);
+            }
+            DataSize size;
+            if (type == "BYTE") {
+                size = DataSize::BYTE;
+            } else if (type == "WORD") {
+                size = DataSize::WORD;
+            } else if (type == "DWORD") {
+                size = DataSize::DWORD;
+            } else if (type == "QWORD") {
+                size = DataSize::QWORD;
+            } else {
+                LOG_WARNING("Invalid register type: '%s'", type.c_str());
+                size = DataSize::BYTE;
+            }
+            register_names.push_back({name, size});
+        }
+    }
+    const JsonObject& instr = obj.get<JsonObject>("instructions");
+    for (const auto& kv: instr) {
+        if (const int64_t* i = kv.second.get<int64_t>()) {
+            std::string key = kv.first;
+            for (auto& c : key) {
+                c = std::toupper(c);
+            }
+            instruction_set[key] = instruction_from_ix(*i);
+        }
+    }
+
+    return true;
 }
 
 Processor ProcessorTemplate::instantiate() const {
@@ -78,22 +158,8 @@ Processor ProcessorTemplate::instantiate() const {
     for (auto o : out_ports) {
         out.push_back(std::move(o.instantiate()));
     }
-
     return {std::move(in), std::move(out), instruction_set, register_names};
 }
-
-ProcessorTemplate DEFAULT_TEMPLATE {
-    "The basic",
-    {{"A", PortDatatype::BYTE, PortType::BLOCKING},
-     {"B", PortDatatype::BYTE, PortType::BLOCKING}},
-
-    {{"Z", PortDatatype::BYTE, PortType::BLOCKING}},
-
-    {{"R0", DataSize::BYTE},
-     {"R1", DataSize::BYTE},
-     {"R2", DataSize::BYTE},
-     {"R3", DataSize::BYTE}},
-    BASIC_INSTRUCTIONS};
 
 Processor::Processor(std::vector<std::unique_ptr<BytePort>> in_ports,
                      std::vector<std::unique_ptr<BytePort>> out_ports,
@@ -102,6 +168,7 @@ Processor::Processor(std::vector<std::unique_ptr<BytePort>> in_ports,
     : in_ports{std::move(in_ports)}, out_ports{std::move(out_ports)},
       instruction_set{std::move(instruction_set)},
       registers{std::move(registers)}, pc{0}, ticks{0} {
+          LOG_DEBUG("Size: %d", instruction_set.size());
     instructions.push_back({InstructionType::NOP});
     instructions.back().line = 0;
 }

@@ -2,6 +2,7 @@
 #define PROCASM_EDITLINES_H
 #include <string>
 #include <vector>
+#include <cstdint>
 
 /**
  * Struct for storing and comparing a row-collum position in the text.

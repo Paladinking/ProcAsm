@@ -62,7 +62,34 @@ int main(int argv, char* argc[]) {
 
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_DEBUG);
 
-    StateGame game {new GameState(), 1920, 1080, "Text box!!!"};
+    SDL_RWops* presets = SDL_RWFromFile("presets.json", "r");
+    if (presets == nullptr) {
+        LOG_CRITICAL("Failed opening presets file: %s", SDL_GetError());
+        return 1;
+    }
+    std::size_t size = SDL_RWsize(presets);
+    std::string str;
+    str.resize(size);
+    if (SDL_RWread(presets, &str[0], 1, size) != size) {
+        LOG_CRITICAL("Failed reading presets file");
+        SDL_RWclose(presets);
+        return 1;
+    }
+
+    SDL_RWclose(presets);
+    ProcessorTemplate temp;
+    try {
+        JsonObject obj = json::read_from_string(str);
+        if (!temp.read_from_json(obj)) {
+            LOG_CRITICAL("Failed parsing processor template");
+            return 1;
+        }
+    } catch (json_exception& e) {
+        LOG_CRITICAL("Failed parsing presets.json: %s", e.msg.c_str());
+        return 1;
+    }
+
+    StateGame game {new GameState(temp), 1920, 1080, "Text box!!!"};
     try {
         game.create();
         game.run();

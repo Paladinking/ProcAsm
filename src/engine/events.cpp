@@ -2,6 +2,39 @@
 #include "exceptions.h"
 #include "log.h"
 
+
+template <> uint64_t EventInfo::get() { return u; }
+
+template <> uint32_t EventInfo::get() { return static_cast<uint32_t>(u); }
+
+template <> uint16_t EventInfo::get() { return static_cast<uint16_t>(u); }
+
+template <> uint8_t EventInfo::get() { return static_cast<uint8_t>(u); }
+
+template <> int64_t EventInfo::get() { return i; }
+
+template <> int32_t EventInfo::get() { return static_cast<int32_t>(i); }
+
+template <> int16_t EventInfo::get() { return static_cast<int16_t>(i); }
+
+template <> int8_t EventInfo::get() { return static_cast<int8_t>(i); }
+
+template <> void EventInfo::set(uint64_t t) { u = t; }
+
+template <> void EventInfo::set(uint32_t t) { u = t; }
+   
+template <> void EventInfo::set(uint16_t t) { u = t; }
+    
+template <> void EventInfo::set(uint8_t t) { u = t; }
+
+template <> void EventInfo::set(int64_t t) { i = t; }
+
+template <> void EventInfo::set(int32_t t) { i = t; }
+    
+template <> void EventInfo::set(int16_t t) { i = t; }
+    
+template <> void EventInfo::set(int8_t t) { i = t; }
+
 EventScope::EventScope(Events *events) : events{events} {}
 
 EventScope::EventScope(EventScope &&other) noexcept

@@ -1,0 +1,43 @@
+{
+    "name" : "The json basic",
+    "in_ports": [
+        {
+            "name" : "A",
+            "data_type" : "BYTE",
+            "port_type" : "BLOCKING"
+        },
+        {
+            "name" : "B",
+            "data_type" : "BYTE",
+            "port_type" : "BLOCKING"
+        }
+    ],
+    "out_ports": [
+        {
+            "name" : "Z",
+            "data_type" : "BYTE",
+            "port_type" : "BLOCKING"
+        }
+    ],
+    "registers": [
+        {
+            "name": "R0",
+            "type": "BYTE"
+        },
+        {
+            "name": "R1",
+            "type": "BYTE"
+        },
+        {
+            "name": "R2",
+            "type": "BYTE"
+        },
+        {
+            "name": "R3",
+            "type": "BYTE"
+        }
+    ],
+    "instructions": {
+        "IN" : 0, "OUT": 1, "MOV" : 2, "ADD": 3, "SUB": 4, "JEZ": 5, "NOP" : 6
+    }
+}
