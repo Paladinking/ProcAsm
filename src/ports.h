@@ -112,7 +112,7 @@ class BytePort {
 
     const std::string name;
 protected:
-    event_t event = NULL_EVENT;
+    bool changed = false;
 public:
     BytePort(std::string name, PortDatatype in, PortDatatype out) :
         name{std::move(name)}, input_type{in}, output_type{out} {}
@@ -123,15 +123,6 @@ public:
     // Returns the type of output
     PortDatatype get_output_type() const noexcept { return output_type; }
 
-    event_t register_event() noexcept {
-        event = gEvents.register_event(EventType::UNIFIED);
-        return event;
-    }
-
-    event_t get_event() {
-        return event;
-    }
-
     virtual ~BytePort() = default;
 
     virtual void pop_data() noexcept = 0;
@@ -139,6 +130,15 @@ public:
     virtual bool has_data() const noexcept = 0;
 
     virtual void flush() noexcept = 0;
+
+    bool format_new(std::string& s) {
+        if (changed) {
+            s = format();
+            changed = false;
+            return true;
+        }
+        return false;
+    }
 
     std::string format() const noexcept {
         if (has_data()) {
@@ -296,7 +296,7 @@ public:
 
     void pop_data() noexcept override {
         empty = true;
-        gEvents.notify_event(event, static_cast<T>(0));
+        changed = true;
     }
 
     bool has_space() const noexcept override {
@@ -334,7 +334,7 @@ public:
     void push_qword(uint64_t v) noexcept override {
         element = v;
         empty = false;
-        gEvents.notify_event(event, static_cast<T>(v));
+        changed = true;
     }
 
     void flush() noexcept override {

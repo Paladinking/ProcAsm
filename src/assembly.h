@@ -10,6 +10,9 @@ class GameState : public State {
 public:
     GameState(ProcessorTemplate proc);
 
+    GameState(const GameState& other) = delete;
+    GameState(GameState&& other) = delete;
+
     void init(WindowState* state) override;
 
     void resume() override;
@@ -27,6 +30,8 @@ public:
     void handle_size_change() override;
 
     void handle_focus_change(bool focus) override;
+
+    void menu_change(bool visible);
 private:
     StateStatus next_state;
 
@@ -43,6 +48,8 @@ private:
     Processor processor;
     ByteProblem problem {};
     ProcessorGui processor_gui{};
+
+    Components top_comps;
 
     Uint64 ticks_passed = 0;
 

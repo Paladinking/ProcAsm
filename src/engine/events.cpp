@@ -72,6 +72,7 @@ EventScope::~EventScope() {
     if (events == nullptr) {
         return;
     }
+    auto stamp = SDL_GetTicks64();
     auto it = cb_indicies.begin();
     while (it != cb_indicies.end()) {
         event_t evt = *it;
@@ -80,9 +81,11 @@ EventScope::~EventScope() {
         ++it;
         events->remove_callback(evt, ix);
     }
+
     for (std::size_t aux : aux_indicies) {
         events->remove_aux(aux);
     }
+
     for (event_t evt: evt_indicies) {
         events->remove_event(evt);
     }
@@ -125,6 +128,7 @@ void Events::finalize_scope() {
 
 event_t Events::register_event(EventType type, int vector_size) {
     event_t id = free_ix;
+    LOG_DEBUG("Event %u registered", id);
     ++free_ix;
     for (; free_ix < events.size(); ++free_ix) {
         if (events[free_ix].type == EventType::EMPTY) {
@@ -173,7 +177,6 @@ void Events::register_callback(event_t id, void (*callback)(EventInfo, void *),
         }
         events[id].free_ix = ix;
     }
-    LOG_DEBUG("New free: %d", events[id].free_ix);
 }
 
 void Events::notify_event(event_t id, EventInfo data) {

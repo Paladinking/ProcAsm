@@ -15,6 +15,8 @@ ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, in
 
 void ProcessorGui::set_processor(Processor* new_processor) {
     this->processor = new_processor;
+    auto stamp = SDL_GetTicks64();
+
     problem_inputs.clear();
     problem_outputs.clear();
     dropdowns.clear();
@@ -27,16 +29,23 @@ void ProcessorGui::set_processor(Processor* new_processor) {
     out_ports.clear(); 
     comps.clear();
 
+    auto now = SDL_GetTicks64();
+    LOG_INFO("1: %llu", now - stamp);
+    stamp = now;
+
     event_scope = gEvents.begin_scope();
 
-    processor->register_events();
-    problem->register_events();
+    now = SDL_GetTicks64();
+    LOG_INFO("1.0.0: %llu", now - stamp);
+    stamp = now;
 
-    Callback_u menu_toggle = [](uint64_t show_menu, ProcessorGui* gui) {
-        gui->comps.enable_hover(show_menu == 0);
-    };
+    now = SDL_GetTicks64();
+    LOG_INFO("1.0.0: %llu", now - stamp);
+    stamp = now;
 
-    gEvents.register_callback(EventId::MENU_CHANGE, menu_toggle, this);
+    now = SDL_GetTicks64();
+    LOG_INFO("1.0: %llu", now - stamp);
+    stamp = now;
 
     Callback run_pressed = [](ProcessorGui* gui) {
         if (gui->processor->is_valid()) {
@@ -62,6 +71,10 @@ void ProcessorGui::set_processor(Processor* new_processor) {
     run = comps.add(Button(BOX_SIZE + 10, BOX_SIZE - 90, 80, 80, "Run", *window_state), run_pressed, this);
     comps.add(Button(BOX_SIZE + 10, BOX_SIZE - 180, 80, 80, "Step", *window_state), step_pressed, this);
 
+    now = SDL_GetTicks64();
+    LOG_INFO("1.1: %llu", now - stamp);
+    stamp = now;
+
     Callback_u run_change = [](uint64_t running, ProcessorGui* gui) {
         if (running) {
             gui->run->set_text("Stop");
@@ -76,42 +89,20 @@ void ProcessorGui::set_processor(Processor* new_processor) {
         gui->registers[reg]->set_text(name + ": " + std::to_string(val));
     };
 
-    Callback_u outport_change = [](uint64_t port, ProcessorGui* gui) {
-        gui->out_ports[port * 2 + 1]->set_text(gui->processor->out_ports[port]->format());
-    };
-
-    Callback_u inport_change = [](uint64_t port, ProcessorGui* gui) {
-        gui->in_ports[port * 2 + 1]->set_text(gui->processor->in_ports[port]->format());
-    };
-
     Callback_u ticks_change = [](uint64_t ticks, ProcessorGui* gui) {
         gui->ticks->set_text("Ticks: " + std::to_string(ticks));
     };
+    now = SDL_GetTicks64();
+    LOG_INFO("1.2: %llu", now - stamp);
+    stamp = now;
 
     gEvents.register_callback(EventId::RUNNING_CHANGED, run_change, this);
     gEvents.register_callback(EventId::REGISTER_CHANGED, register_change, this);
     gEvents.register_callback(EventId::TICKS_CHANGED, ticks_change, this);
 
-    Callback_u indata_change = [](uint64_t data, ProcessorGui* gui) {
-        uint8_t val;
-        if (gui->problem->poll_input(data, val)) {
-            gui->problem_inputs[2 * data + 1]->set_text(std::to_string(val));
-        } else {
-            gui->problem_inputs[2 * data + 1]->set_text("None");
-        }
-    };
-
-    Callback_u outdata_change = [](uint64_t data, ProcessorGui* gui) {
-        uint8_t val;
-        if (gui->problem->poll_output(data, val)) {
-            gui->problem_outputs[2 * data + 1]->set_text(std::to_string(val));
-        } else {
-            gui->problem_outputs[2 * data + 1]->set_text("None");
-        }
-    };
-
-    gEvents.register_callback(problem->input_event, indata_change, this);
-    gEvents.register_callback(problem->output_event, outdata_change, this);
+    now = SDL_GetTicks64();
+    LOG_INFO("1.5: %llu", now - stamp);
+    stamp = now;
 
     for (uint64_t i = 0; i < processor->registers.gen_reg_count(); ++i) {
         auto text = processor->registers.to_name(i);
@@ -125,11 +116,11 @@ void ProcessorGui::set_processor(Processor* new_processor) {
     flags = comps.add(TextBox(5 + BOX_SIZE - 120, BOX_SIZE - 30 - BOX_LINE_HEIGHT, 8, BOX_LINE_HEIGHT, "Z: 0", *window_state));
     flags->set_align(Alignment::LEFT);
 
-    for (uint32_t i = 0; i < processor->in_ports.size(); ++i) {
-        int event = processor->in_ports[i]->get_event();
-        gEvents.register_callback(event, inport_change,
-                                               static_cast<uint64_t>(i), this);
+    now = SDL_GetTicks64();
+    LOG_INFO("2: %llu", now - stamp);
+    stamp = now;
 
+    for (uint32_t i = 0; i < processor->in_ports.size(); ++i) {
         std::string s = processor->in_ports[i]->format();
         std::string name = "In " + processor->in_ports[i]->get_name();
         auto box = comps.add(TextBox(30 + 110 * i, -50, 80, BOX_LINE_HEIGHT, name, *window_state));
@@ -139,10 +130,6 @@ void ProcessorGui::set_processor(Processor* new_processor) {
         comps.add(Box(30 + 110 * i, -60, 80, 60, 2));
     }
     for (uint32_t i = 0; i < processor->out_ports.size(); ++i) {
-        event_t event = processor->out_ports[i]->get_event();
-        gEvents.register_callback(event, outport_change,
-                                               static_cast<uint64_t>(i), this);
-
         std::string name = "Out " + processor->out_ports[i]->get_name();
         auto box = comps.add(TextBox(30 + 110 * i, BOX_SIZE + 10, 80, BOX_LINE_HEIGHT, name, *window_state));
         out_ports.push_back(box);
@@ -197,6 +184,10 @@ void ProcessorGui::set_processor(Processor* new_processor) {
         gui->problem->reset();
         gui->processor->reset();
     };
+
+    now = SDL_GetTicks64();
+    LOG_INFO("3: %llu", now - stamp);
+    stamp = now;
 
     void(*on_out_dropdown)(int64_t, int, ProcessorGui*) = [](int64_t select, int ix, ProcessorGui* gui) {
         for (auto& port: gui->problem->output_ports) {
@@ -291,9 +282,39 @@ void ProcessorGui::set_processor(Processor* new_processor) {
 
     comps.add(Box(BOX_SIZE - 120, 0, 120, 100, 2));
 
-    processor_info = comps.add(Button(BOX_SIZE + 20, 20, 40, 40, "i", *window_state));
-
     gEvents.finalize_scope();
+    
+    now = SDL_GetTicks64();
+    LOG_INFO("4: %llu", now - stamp);
+    stamp = now;
+}
+
+void ProcessorGui::update() {
+    std::string s;
+    for (uint64_t i = 0; i < processor->in_ports.size(); ++i) { 
+        auto& port = in_ports[2 * i + 1];
+        if (processor->in_ports[i]->format_new(s)) {
+            port->set_text(s);
+        }
+    }
+    for (uint64_t i = 0; i < processor->out_ports.size(); ++i) { 
+        auto& port = out_ports[2 * i + 1];
+        if (processor->out_ports[i]->format_new(s)) {
+            port->set_text(s);
+        }
+    }
+    for (uint64_t i = 0; i < problem->input_ports.size(); ++i) { 
+        auto& port = problem_inputs[2 * i + 1];
+        if (problem->poll_input(i, s)) {
+            port->set_text(s);
+        }
+    }
+    for (uint64_t i = 0; i < problem->output_ports.size(); ++i) { 
+        auto& port = problem_outputs[2 * i + 1];
+        if (problem->poll_output(i, s)) {
+            port->set_text(s);
+        }
+    }
 }
 
 void ProcessorGui::render() const {
@@ -306,6 +327,10 @@ void ProcessorGui::render() const {
         SDL_RenderFillRect(gRenderer, &rect);
     }
 
+}
+
+void ProcessorGui::menu_change(bool visible) {
+    comps.enable_hover(!visible);
 }
 
 void ProcessorGui::set_dpi(double dpi_scale) {

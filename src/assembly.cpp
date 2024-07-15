@@ -75,8 +75,6 @@ void GameState::handle_size_change() {
     set_font_size();
 }
 
-event_t EventId::MENU_CHANGE = 0;
-
 void GameState::init(WindowState *window_state) {
     SDL_ShowWindow(gWindow);
     SDL_RenderSetVSync(gRenderer, 1);
@@ -93,7 +91,6 @@ void GameState::init(WindowState *window_state) {
 
     scope = gEvents.begin_scope();
 
-    EventId::MENU_CHANGE = gEvents.register_event(EventType::UNIFIED);
     EventId::REGISTER_CHANGED = gEvents.register_event(EventType::UNIFIED_VEC, MAX_REGISTERS);
     EventId::TICKS_CHANGED = gEvents.register_event(EventType::UNIFIED);
     EventId::RUNNING_CHANGED = gEvents.register_event(EventType::UNIFIED);
@@ -103,17 +100,20 @@ void GameState::init(WindowState *window_state) {
 
     processor_gui.~ProcessorGui();
     new (&processor_gui)ProcessorGui(&processor, &problem, BOX_X, BOX_Y, window_state);
+    
+    gEvents.finalize_scope();
 
     void(*proc_cb)(GameState*) = [](GameState* self) {
-        gEvents.notify_event(EventId::MENU_CHANGE, static_cast<uint64_t>(1));
+        self->processor_gui.menu_change(true);
+        self->top_comps.enable_hover(false);
         self->next_state.action = StateStatus::PUSH;
         self->next_state.new_state = new ProcessorMenu(self);
     };
 
-    int e = processor_gui.processor_info->get_event();
-    gEvents.register_callback(e, proc_cb, this);
+    top_comps.set_window_state(window_state);
 
-    gEvents.finalize_scope();
+    top_comps.add(Button(BOX_SIZE + 20, 20, 40, 40, "i", *window_state), proc_cb, this);
+
     next_state.action = StateStatus::NONE;
 
     set_font_size();
@@ -141,12 +141,19 @@ void GameState::init(WindowState *window_state) {
 
 void GameState::resume() {
     next_state.action = StateStatus::NONE;
-    gEvents.notify_event(EventId::MENU_CHANGE, static_cast<uint64_t>(0));
+    processor_gui.menu_change(false);
+    top_comps.enable_hover(true);
+
+    processor_gui.set_processor(&processor);
+
+    problem.reset();
+    processor.reset();
 }
 
 void GameState::render() {
     box.render();
     processor_gui.render();
+    top_comps.render(0, 0);
 
 }
 void GameState::tick(const Uint64 delta, StateStatus &res) {
@@ -175,11 +182,13 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
             ticks_passed -= TICK_DELAY;
         }
     }
+    processor_gui.update();
 }
 
 void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {
     if (mouse == SDL_BUTTON_LEFT) {
         processor_gui.mouse_change(false);
+        top_comps.handle_press(0, 0, false);
         if (!box.is_pressed(window_state->mouseX, window_state->mouseY) && mouse_down) {
             box.unselect();
             SDL_StopTextInput();
@@ -199,6 +208,7 @@ void GameState::handle_down(const SDL_Keycode key, const Uint8 mouse) {
         next_state.action = StateStatus::POP;
     } else if (mouse == SDL_BUTTON_LEFT) {
         processor_gui.mouse_change(true);
+        top_comps.handle_press(0, 0, true);
         if (box.is_pressed(window_state->mouseX, window_state->mouseY)) {
             SDL_StartTextInput();
             box.select();

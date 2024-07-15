@@ -45,8 +45,6 @@ public:
 
     void clock_tick();
 
-    void register_events();
-
     bool is_valid() const noexcept;
 
     bool is_running() const noexcept;

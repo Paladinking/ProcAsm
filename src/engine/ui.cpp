@@ -216,8 +216,7 @@ Button::Button(int x, int y, int w, int h, std::string text, WindowState &ws)
 
 Button::Button(int x, int y, int w, int h, std::string text, int fs,
                WindowState &ws)
-    : text(x, y, w, h, std::move(text), fs, ws) {
-    event = gEvents.register_event(EventType::IMMEDIATE);
+    : text(x, y, w, h, std::move(text), fs, ws), event{0} {
 }
 
 Button::Button(SDL_Rect rect, std::string text, const WindowState &ws, void *)
@@ -249,7 +248,6 @@ bool Button::handle_press(WindowState &ws, int x_offset, int y_offset,
     int mouseX = ws.mouseX - x_offset;
     int mouseY = ws.mouseY - y_offset;
     if (handle_press(mouseX, mouseY, press)) {
-        gEvents.notify_event(event, static_cast<int64_t>(1));
         return true;
     }
     return false;
@@ -268,6 +266,10 @@ void Button::enable_hover(bool enable) {
 }
 
 event_t Button::get_event() const { return event; }
+
+void Button::set_event(event_t new_event) {
+    event = new_event;
+}
 
 void Button::set_dpi_ratio(double ratio) { text.set_dpi_ratio(ratio); }
 
@@ -305,9 +307,8 @@ Dropdown::Dropdown(SDL_Rect dims, std::string text,
 Dropdown::Dropdown(int x, int y, int w, int h, std::string text,
                    const std::vector<std::string> &choices,
                    WindowState &window_state)
-    : base(x, y, w, h, text, window_state), default_value(text), ix{-1} {
+    : base(x, y, w, h, text, window_state), default_value(text), ix{-1}, event{0} {
     set_choices(choices, window_state);
-    event = gEvents.register_event(EventType::IMMEDIATE);
 }
 
 void Dropdown::render(int x_offset, int y_offset,
@@ -387,6 +388,10 @@ void Dropdown::set_choices(const std::vector<std::string> &choices,
 
 event_t Dropdown::get_event() const { return event; }
 
+void Dropdown::set_event(event_t new_event) {
+    event = new_event;
+}
+
 void Dropdown::set_dpi_ratio(double dpi) {
     base.set_dpi_ratio(dpi);
     for (auto &btn : choices) {
@@ -417,9 +422,8 @@ int Dropdown::handle_press(WindowState &window_state, int x_offset,
             } else {
                 base.set_text(choices[pressed].get_text().substr(1));
             }
-            gEvents.notify_event(event, static_cast<int64_t>(ix));
         }
-        return pressed - 1;
+        return pressed;
     }
     return -1;
 }

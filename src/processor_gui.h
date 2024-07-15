@@ -16,14 +16,15 @@ public:
 
     void render() const;
 
+    void update();
+
     void set_processor(Processor* processor);
 
     void set_dpi(double dpi_scale);
 
     void mouse_change(bool press);
 
-    Component<Button> processor_info {};
-    Component<Button> problem_info {};
+    void menu_change(bool visible);
 private:
     std::unique_ptr<EventScope> event_scope {};
 

@@ -124,12 +124,13 @@ public:
             std::tuple<Args...> args;
             void (*cb)(T, Args...);
         };
-        add_aux(new Wrapper{args..., callback});
+        auto* aux = new Wrapper{args..., callback};
+        add_aux(aux);
         auto call = [](EventInfo i, void *aux) {
             Wrapper &w = *reinterpret_cast<Wrapper *>(aux);
             w.cb(i.get<T>(), std::get<Args>(w.args)...);
         };
-        register_callback(id, call, aux_data.back().get());
+        register_callback(id, call, aux);
     }
 
     template <class... Args>
@@ -140,12 +141,13 @@ public:
             std::tuple<Args...> args;
             void (*cb)(Args...);
         };
-        add_aux(new Wrapper{args..., callback});
+        auto* aux = new Wrapper{args..., callback};
+        add_aux(aux);
         auto call = [](EventInfo i, void *aux) {
             Wrapper &w = *reinterpret_cast<Wrapper *>(aux);
             w.cb(std::get<Args>(w.args)...);
         };
-        register_callback(id, call, aux_data.back().get());
+        register_callback(id, call, aux);
     }
 
     template<class T>

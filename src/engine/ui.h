@@ -203,6 +203,8 @@ public:
 
     event_t get_event() const;
 
+    void set_event(event_t event);
+
 private:
     Button(SDL_Rect rect, std::string text, const WindowState &ws, void*);
 
@@ -210,7 +212,7 @@ private:
 
     friend class Dropdown;
 
-    event_t event = -1;
+    event_t event = 0;
 
     TextBox text;
 
@@ -250,13 +252,15 @@ public:
 
     event_t get_event() const;
 
+    void set_event(event_t event);
+
 private:
     bool show_list = false;
 
     int max_w, max_h;
 
     int ix;
-    event_t event = -1;
+    event_t event = 0;
 
     std::string default_value;
 
@@ -285,7 +289,24 @@ class Components {
     template<class C>
     friend class Component;
 
+    struct WrapperBase {
+        virtual ~WrapperBase() = default;
+    };
+
+    struct CallbackData {
+        void (*callback)(int64_t, void*);
+        std::unique_ptr<WrapperBase> aux;
+    };
+
+    std::vector<CallbackData> callbacks {};
+
 public:
+    Components() {
+        auto cb = [](int64_t, void*) {};
+        // Add callback at index 0 as null callback.
+        callbacks.push_back({cb, nullptr});
+    }
+
     void clear() {
         std::get<0>(comps).clear();
         std::get<1>(comps).clear();
@@ -339,10 +360,18 @@ public:
 
     void handle_press(int x_offset, int y_offset, bool press) {
         for (auto &btn : std::get<3>(comps)) {
-            btn.handle_press(*window_state, x_offset, y_offset, press);
+            if (btn.handle_press(*window_state, x_offset, y_offset, press)) {
+                event_t ix = btn.get_event();
+                callbacks[ix].callback(1, callbacks[ix].aux.get());
+            }
         }
         for (auto &dropdown : std::get<4>(comps)) {
-            dropdown.handle_press(*window_state, x_offset, y_offset, press);
+            int64_t res = dropdown.handle_press(*window_state, x_offset, y_offset, press);
+            if (res >= 0) {
+                event_t ix = dropdown.get_event();
+                callbacks[ix].callback(res - 1, callbacks[ix].aux.get());
+            }
+
         }
     }
 
@@ -357,7 +386,23 @@ public:
     Component<C> add(C&& comp, void(*cb)(Args...), Args... args) {
         auto& vec = std::get<std::vector<C>>(comps);
         vec.push_back(std::move(comp));
-        gEvents.register_callback(vec.back().get_event(), cb, args...);
+
+        struct Wrapper : public WrapperBase {
+            explicit Wrapper(Args... args, void(*cb)(Args...))
+                : args{args...}, cb{cb} {}
+            std::tuple<Args...> args;
+            void (*cb)(Args...);
+        };
+        std::unique_ptr<WrapperBase> aux{new Wrapper{args..., cb}};
+        auto call = [](int64_t i, void* aux) {
+            Wrapper &w = *reinterpret_cast<Wrapper*>(aux);
+            w.cb(std::get<Args>(w.args)...);
+        };
+
+        CallbackData data{call, std::move(aux)};
+        callbacks.push_back(std::move(data));
+        vec.back().set_event(callbacks.size() - 1);
+
         return {this, vec.size() - 1};
     }
 
@@ -365,7 +410,23 @@ public:
     Component<C> add(C&& comp, void(*cb)(int64_t data, Args...), Args... args) {
         auto& vec = std::get<std::vector<C>>(comps);
         vec.push_back(std::move(comp));
-        gEvents.register_callback(vec.back().get_event(), cb, args...);
+
+        struct Wrapper : public WrapperBase {
+            explicit Wrapper(Args... args, void(*cb)(int64_t data, Args...))
+                : args{args...}, cb{cb} {}
+            std::tuple<Args...> args;
+            void (*cb)(int64_t, Args...);
+        };
+        std::unique_ptr<WrapperBase> aux{new Wrapper{args..., cb}};
+        auto call = [](int64_t i, void* aux) {
+            Wrapper &w = *reinterpret_cast<Wrapper*>(aux);
+            w.cb(i, std::get<Args>(w.args)...);
+        };
+
+        CallbackData data{call, std::move(aux)};
+        callbacks.push_back(std::move(data));
+        vec.back().set_event(callbacks.size() - 1);
+
         return {this, vec.size() - 1};
     }
 

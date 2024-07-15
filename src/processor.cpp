@@ -318,15 +318,6 @@ event_t EventId::REGISTER_CHANGED = 0;
 event_t EventId::TICKS_CHANGED = 0;
 event_t EventId::RUNNING_CHANGED = 0;
 
-void Processor::register_events() {
-    for (auto &port : in_ports) {
-        port->register_event();
-    }
-    for (auto &port : out_ports) {
-        port->register_event();
-    }
-}
-
 bool Processor::is_valid() const noexcept { return valid; }
 
 bool Processor::is_running() const noexcept { return running; }
