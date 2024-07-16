@@ -53,12 +53,18 @@ struct Instruction {
 };
 
 typedef uint32_t flag_t;
-constexpr flag_t FLAG_ZERO = 1;
+constexpr flag_t FLAG_ZERO_IX = 0;
+constexpr flag_t FLAG_ZERO_MASK = (1 << FLAG_ZERO_IX);
 
 typedef std::vector<std::pair<std::string, DataSize>> RegisterNames;
 
 class RegisterFile {
 public:
+    struct Register {
+        uint64_t val;
+        bool changed;
+    };
+
     RegisterFile(RegisterNames register_names);
 
     uint64_t gen_reg_count() const;
@@ -73,12 +79,14 @@ public:
 
     const std::string& to_name(uint64_t ix) const;
 
+    bool poll_value(uint64_t ix, std::string& s);
+
     flag_t enabled_flags;
     flag_t flags = 0;
 private:
     RegisterNames register_names;
 
-    std::vector<uint64_t> gen_registers {};
+    std::vector<Register> gen_registers {};
 
 };
 #endif

@@ -30,13 +30,25 @@ ByteOutputSlot<uint8_t> *ByteProblem::get_output_port(std::size_t ix) {
     return &output_ports[ix];
 }
 
+std::string ByteProblem::format_input(std::size_t ix) {
+    if (ix == 0) {
+        return std::to_string(this->ix);
+    } else {
+        return "None";
+    }
+}
+
+std::string ByteProblem::format_output(std::size_t ix) {
+    if (last_output >= 0) {
+        return std::to_string(last_output);
+    } else {
+        return "None";
+    }
+}
+
 bool ByteProblem::poll_input(std::size_t ix, std::string& s) {
     if (input_changes[ix]) {
-        if (ix == 0) {
-            s = std::to_string(this->ix);
-        } else {
-            s = "None";
-        }
+        s = format_input(ix);
         input_changes[ix] = 0;
         return true;
     }
@@ -45,11 +57,8 @@ bool ByteProblem::poll_input(std::size_t ix, std::string& s) {
 
 bool ByteProblem::poll_output(std::size_t ix, std::string& s) {
     if (output_changes[ix]) {
-        if (last_output >= 0) {
-            s = std::to_string(last_output);
-        } else {
-            s = "None";
-        }
+        s = format_output(ix);
+        output_changes[ix] = 0;
         return true;
     }
     return false;

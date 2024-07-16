@@ -11,8 +11,6 @@ extern SDL_Window *gWindow;
 
 extern TTF_Font *gFont;
 
-extern Events gEvents;
-
 /**
  * Struct used for putting an SDL_Surface in a smart-pointer.
  */

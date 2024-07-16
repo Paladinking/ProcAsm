@@ -107,7 +107,6 @@ void Game::run() {
 
         Uint64 cur_time = SDL_GetTicks64();
         this->tick(cur_time - last_time);
-        gEvents.handle_events();
         if (!running)
             break;
         last_time = cur_time;

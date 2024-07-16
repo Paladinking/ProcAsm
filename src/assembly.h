@@ -43,8 +43,6 @@ private:
 
     Editbox box;
 
-    std::unique_ptr<EventScope> scope;
-
     Processor processor;
     ByteProblem problem {};
     ProcessorGui processor_gui{};

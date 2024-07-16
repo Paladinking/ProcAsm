@@ -22,6 +22,10 @@ public:
 
     void clock_tick_output();
 
+    std::string format_input(std::size_t ix);
+
+    std::string format_output(std::size_t ix);
+
     bool poll_input(std::size_t ix, std::string& s);
 
     bool poll_output(std::size_t ix, std::string& s);

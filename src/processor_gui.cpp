@@ -29,24 +29,6 @@ void ProcessorGui::set_processor(Processor* new_processor) {
     out_ports.clear(); 
     comps.clear();
 
-    auto now = SDL_GetTicks64();
-    LOG_INFO("1: %llu", now - stamp);
-    stamp = now;
-
-    event_scope = gEvents.begin_scope();
-
-    now = SDL_GetTicks64();
-    LOG_INFO("1.0.0: %llu", now - stamp);
-    stamp = now;
-
-    now = SDL_GetTicks64();
-    LOG_INFO("1.0.0: %llu", now - stamp);
-    stamp = now;
-
-    now = SDL_GetTicks64();
-    LOG_INFO("1.0: %llu", now - stamp);
-    stamp = now;
-
     Callback run_pressed = [](ProcessorGui* gui) {
         if (gui->processor->is_valid()) {
             if (gui->processor->is_running()) {
@@ -65,23 +47,13 @@ void ProcessorGui::set_processor(Processor* new_processor) {
             gui->problem->clock_tick_output();
             gui->processor->clock_tick();
             gui->problem->clock_tick_input();
+            auto ticks_str = "Ticks: " + std::to_string(gui->processor->ticks);
+            gui->ticks->set_text(ticks_str);
         }
     };
 
     run = comps.add(Button(BOX_SIZE + 10, BOX_SIZE - 90, 80, 80, "Run", *window_state), run_pressed, this);
     comps.add(Button(BOX_SIZE + 10, BOX_SIZE - 180, 80, 80, "Step", *window_state), step_pressed, this);
-
-    now = SDL_GetTicks64();
-    LOG_INFO("1.1: %llu", now - stamp);
-    stamp = now;
-
-    Callback_u run_change = [](uint64_t running, ProcessorGui* gui) {
-        if (running) {
-            gui->run->set_text("Stop");
-        } else {
-            gui->run->set_text("Run");
-        }
-    };
 
     Callback_u register_change = [](uint64_t reg, ProcessorGui* gui) {
         std::string name = gui->processor->registers.to_name(reg);
@@ -92,17 +64,6 @@ void ProcessorGui::set_processor(Processor* new_processor) {
     Callback_u ticks_change = [](uint64_t ticks, ProcessorGui* gui) {
         gui->ticks->set_text("Ticks: " + std::to_string(ticks));
     };
-    now = SDL_GetTicks64();
-    LOG_INFO("1.2: %llu", now - stamp);
-    stamp = now;
-
-    gEvents.register_callback(EventId::RUNNING_CHANGED, run_change, this);
-    gEvents.register_callback(EventId::REGISTER_CHANGED, register_change, this);
-    gEvents.register_callback(EventId::TICKS_CHANGED, ticks_change, this);
-
-    now = SDL_GetTicks64();
-    LOG_INFO("1.5: %llu", now - stamp);
-    stamp = now;
 
     for (uint64_t i = 0; i < processor->registers.gen_reg_count(); ++i) {
         auto text = processor->registers.to_name(i);
@@ -115,10 +76,6 @@ void ProcessorGui::set_processor(Processor* new_processor) {
     ticks->set_align(Alignment::LEFT);
     flags = comps.add(TextBox(5 + BOX_SIZE - 120, BOX_SIZE - 30 - BOX_LINE_HEIGHT, 8, BOX_LINE_HEIGHT, "Z: 0", *window_state));
     flags->set_align(Alignment::LEFT);
-
-    now = SDL_GetTicks64();
-    LOG_INFO("2: %llu", now - stamp);
-    stamp = now;
 
     for (uint32_t i = 0; i < processor->in_ports.size(); ++i) {
         std::string s = processor->in_ports[i]->format();
@@ -185,10 +142,6 @@ void ProcessorGui::set_processor(Processor* new_processor) {
         gui->processor->reset();
     };
 
-    now = SDL_GetTicks64();
-    LOG_INFO("3: %llu", now - stamp);
-    stamp = now;
-
     void(*on_out_dropdown)(int64_t, int, ProcessorGui*) = [](int64_t select, int ix, ProcessorGui* gui) {
         for (auto& port: gui->problem->output_ports) {
             port.set_port(nullptr);
@@ -236,7 +189,8 @@ void ProcessorGui::set_processor(Processor* new_processor) {
         const std::string& name = problem->input_ports[i].name;
         auto box = comps.add(TextBox(10 + 110 * i, -280 + 80 / 2 - BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, name, *window_state));
         problem_inputs.push_back(box);
-        box = comps.add(TextBox(10 + 110 * i, -280 + 80 / 2, 80, BOX_LINE_HEIGHT, "None", *window_state));
+        std::string s = problem->format_input(i);
+        box = comps.add(TextBox(10 + 110 * i, -280 + 80 / 2, 80, BOX_LINE_HEIGHT, s, *window_state));
         problem_inputs.push_back(box);
         input_wires.emplace_back(comps.add(Polygon({})));
 
@@ -260,7 +214,8 @@ void ProcessorGui::set_processor(Processor* new_processor) {
         const std::string& name = problem->output_ports[i].name;
         auto box = comps.add(TextBox(10 + 100 * i, BOX_SIZE + 200 + 80 / 2 - BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, name, *window_state));
         problem_outputs.push_back(box);
-        box = comps.add(TextBox(10 + 100 * i, BOX_SIZE + 200 + 80 /2, 80, BOX_LINE_HEIGHT, "None", *window_state));
+        std::string s = problem->format_output(i);
+        box = comps.add(TextBox(10 + 100 * i, BOX_SIZE + 200 + 80 /2, 80, BOX_LINE_HEIGHT, s, *window_state));
         problem_outputs.push_back(box);
         output_wires.emplace_back(comps.add(Polygon({})));
 
@@ -281,16 +236,21 @@ void ProcessorGui::set_processor(Processor* new_processor) {
     }
 
     comps.add(Box(BOX_SIZE - 120, 0, 120, 100, 2));
-
-    gEvents.finalize_scope();
-    
-    now = SDL_GetTicks64();
-    LOG_INFO("4: %llu", now - stamp);
-    stamp = now;
 }
 
 void ProcessorGui::update() {
     std::string s;
+    if (processor->is_running()) {
+        if (run->get_text()[0] != 'S') {
+            run->set_text("Stop");
+        }
+        ticks->set_text("Ticks: " + std::to_string(processor->ticks));
+    } else {
+        if (run->get_text()[0] != 'R') {
+            run->set_text("Run");
+        }
+    }
+
     for (uint64_t i = 0; i < processor->in_ports.size(); ++i) { 
         auto& port = in_ports[2 * i + 1];
         if (processor->in_ports[i]->format_new(s)) {
@@ -314,6 +274,18 @@ void ProcessorGui::update() {
         if (problem->poll_output(i, s)) {
             port->set_text(s);
         }
+    }
+    bool register_changed = false;
+    for (uint64_t i = 0; i < processor->registers.gen_reg_count(); ++i) {
+        if (processor->registers.poll_value(i, s)) {
+            register_changed = true;
+            registers[i]->set_text(s);
+        }
+    }
+    if (register_changed) {
+        bool z = processor->registers.flags & FLAG_ZERO_MASK;
+        LOG_DEBUG("Zero: %d", z);
+        flags->set_text(std::string("Z: ") + (z ? "1" : "0"));
     }
 }
 

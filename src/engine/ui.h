@@ -313,6 +313,7 @@ public:
         std::get<2>(comps).clear();
         std::get<3>(comps).clear();
         std::get<4>(comps).clear();
+        callbacks.clear();
     }
 
     void set_window_state(WindowState* window_state) {

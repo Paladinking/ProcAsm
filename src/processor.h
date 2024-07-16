@@ -1,7 +1,6 @@
 #ifndef PROC_ASM_PROCESSOR_H
 #define PROC_ASM_PROCESSOR_H
 #include "instruction.h"
-#include "event_id.h"
 #include "json.h"
 #include "compiler.h"
 #include <vector>

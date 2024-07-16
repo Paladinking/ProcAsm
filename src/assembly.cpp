@@ -89,19 +89,11 @@ void GameState::init(WindowState *window_state) {
     LOG_INFO("Physical size: %d, %d\n", window_state->window_width, window_state->window_height);
     LOG_INFO("Logical size: %d, %d\n", window_state->screen_width, window_state->screen_height);
 
-    scope = gEvents.begin_scope();
-
-    EventId::REGISTER_CHANGED = gEvents.register_event(EventType::UNIFIED_VEC, MAX_REGISTERS);
-    EventId::TICKS_CHANGED = gEvents.register_event(EventType::UNIFIED);
-    EventId::RUNNING_CHANGED = gEvents.register_event(EventType::UNIFIED);
-
     box.~Editbox();
     new (&box)Editbox{BOX_X, BOX_Y, *window_state };
 
     processor_gui.~ProcessorGui();
     new (&processor_gui)ProcessorGui(&processor, &problem, BOX_X, BOX_Y, window_state);
-    
-    gEvents.finalize_scope();
 
     void(*proc_cb)(GameState*) = [](GameState* self) {
         self->processor_gui.menu_change(true);
@@ -112,7 +104,7 @@ void GameState::init(WindowState *window_state) {
 
     top_comps.set_window_state(window_state);
 
-    top_comps.add(Button(BOX_SIZE + 20, 20, 40, 40, "i", *window_state), proc_cb, this);
+    top_comps.add(Button(BOX_X + BOX_SIZE + 20, BOX_Y + 20, 40, 40, "i", *window_state), proc_cb, this);
 
     next_state.action = StateStatus::NONE;
 
@@ -144,10 +136,10 @@ void GameState::resume() {
     processor_gui.menu_change(false);
     top_comps.enable_hover(true);
 
-    processor_gui.set_processor(&processor);
-
     problem.reset();
     processor.reset();
+
+    processor_gui.set_processor(&processor);
 }
 
 void GameState::render() {
@@ -195,6 +187,7 @@ void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {
             if (!processor.is_valid()) {
                 std::vector<ErrorMsg> errors;
                 const auto& text = box.get_text();
+                problem.reset();
                 processor.compile_program(text, errors);
                 box.set_errors(errors);
             }
