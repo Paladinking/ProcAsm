@@ -89,7 +89,7 @@ int main(int argv, char* argc[]) {
         return 1;
     }
 
-    StateGame game {new GameState(temp), 1920, 1080, "Text box!!!"};
+    StateGame game {new GameState({temp}), 1920, 1080, "Text box!!!"};
     try {
         game.create();
         game.run();

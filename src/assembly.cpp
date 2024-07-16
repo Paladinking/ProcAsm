@@ -4,7 +4,7 @@
 #include "config.h"
 #include "processor_menu.h"
 
-GameState::GameState(ProcessorTemplate temp) : State(), processor{temp.instantiate()} {}
+GameState::GameState(std::vector<ProcessorTemplate> temp) : State(), processor{temp[0].instantiate()}, templates{std::move(temp)} {}
 
 void GameState::set_font_size() {
     // This is very cursed, but works on windows with the current font for sizes 1.0, 1.25, 1.5 and 1.75
@@ -99,7 +99,8 @@ void GameState::init(WindowState *window_state) {
         self->processor_gui.menu_change(true);
         self->top_comps.enable_hover(false);
         self->next_state.action = StateStatus::PUSH;
-        self->next_state.new_state = new ProcessorMenu(self);
+        LOG_DEBUG("Template: %s", self->templates[0].name.c_str());
+        self->next_state.new_state = new ProcessorMenu(self, self->templates);
     };
 
     top_comps.set_window_state(window_state);

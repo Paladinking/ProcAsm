@@ -91,9 +91,16 @@ bool ProcessorTemplate::read_from_json(const JsonObject& obj) {
     if (!obj.has_key_of_type<JsonList>("registers")) {
         return false;
     }
+    if (!obj.has_key_of_type<int64_t>("max_instructions")) {
+        return false;
+    }
     if (!obj.has_key_of_type<JsonObject>("instructions")) {
         return false;
     }
+
+    name = obj.get<std::string>("name");
+    instrction_slots = obj.get<int64_t>("max_instructions");
+
     const JsonList& in_ports = obj.get<JsonList>("in_ports");
     for (const auto& val: in_ports) {
         if (const JsonObject* port = val.get<JsonObject>()) {
@@ -162,6 +169,7 @@ bool ProcessorTemplate::read_from_json(const JsonObject& obj) {
 }
 
 Processor ProcessorTemplate::instantiate() const {
+    LOG_DEBUG("Name: %s", name.c_str());
     std::vector<std::unique_ptr<BytePort>> in{}, out{};
     for (auto i : in_ports) {
         in.push_back(std::move(i.instantiate()));

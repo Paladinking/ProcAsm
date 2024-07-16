@@ -37,6 +37,7 @@
             "type": "BYTE"
         }
     ],
+    "max_instructions": 8,
     "instructions": {
         "IN" : 0, "OUT": 1, "MOV" : 2, "ADD": 3, "SUB": 4, "JEZ": 5, "NOP" : 6
     }

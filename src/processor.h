@@ -28,6 +28,8 @@ struct ProcessorTemplate {
 
     RegisterNames register_names {};
 
+    uint64_t instrction_slots;
+
     InstructionSet instruction_set {};
 
     bool read_from_json(const JsonObject& obj);

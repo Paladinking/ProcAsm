@@ -8,7 +8,7 @@
 
 class GameState : public State {
 public:
-    GameState(ProcessorTemplate proc);
+    GameState(std::vector<ProcessorTemplate> proc);
 
     GameState(const GameState& other) = delete;
     GameState(GameState&& other) = delete;
@@ -43,6 +43,7 @@ private:
 
     Editbox box;
 
+
     Processor processor;
     ByteProblem problem {};
     ProcessorGui processor_gui{};
@@ -52,4 +53,6 @@ private:
     Uint64 ticks_passed = 0;
 
     double dpi_scale = 0.0;
+
+    std::vector<ProcessorTemplate> templates;
 };
