@@ -19,10 +19,10 @@ namespace json {
         type = other.type;
         switch(other.type) {
             case OBJECT:
-                new (object.data) JsonObject(reinterpret_cast<const JsonObject&>(other.object.data));
+                object = new JsonObject(*other.object);
                 break;
             case LIST:
-                new (list.data) JsonList(reinterpret_cast<const JsonList&>(other.list.data));
+                list = new JsonList(*other.list);
                 break;
             case INTEGER:
                 integer = other.integer;
@@ -34,7 +34,7 @@ namespace json {
                 boolean = other.boolean;
                 break;
             case STRING:
-                new (&str) std::string(other.str);
+                str = new std::string(*other.str);
                 break;
             case JSON_NULL:
                 break;
@@ -52,12 +52,15 @@ namespace json {
         }
         free();
         type = other.type;
-        switch(other.type) {
+        other.type = JSON_NULL;
+        switch(type) {
             case OBJECT:
-                new (object.data) JsonObject(std::move(reinterpret_cast<JsonObject&>(other.object.data)));
+                object = other.object;
+                other.object = nullptr;
                 break;
             case LIST:
-                new (list.data) JsonList(std::move(reinterpret_cast<JsonList&>(other.list.data)));
+                list = other.list;
+                other.list = nullptr;
                 break;
             case INTEGER:
                 integer = other.integer;
@@ -69,13 +72,12 @@ namespace json {
                 boolean = other.boolean;
                 break;
             case STRING:
-                new (&str) std::string(std::move(other.str));
+                str = other.str;
+                other.str = nullptr;
                 break;
             case JSON_NULL:
                 break;
         }
-        other.free();
-        other.type = JSON_NULL;
         return *this;
     }
 
@@ -85,13 +87,13 @@ namespace json {
     }
     template <> const JsonObject *Type::get() const {
         if (type == OBJECT) {
-            return &reinterpret_cast<const JsonObject&>(object.data);
+            return object;
         }
         return nullptr;
     }
     template <> const JsonList *Type::get() const {
         if (type == LIST) {
-            return &reinterpret_cast<const JsonList&>(list.data);
+            return list;
         }
         return nullptr;
     }
@@ -115,19 +117,19 @@ namespace json {
     }
     template <> const std::string* Type::get() const {
         if (type == STRING) {
-            return &str;
+            return str;
         }
         return nullptr;
     }
     template <> void Type::set(JsonObject obj) {
         free();
         type = OBJECT;
-        new (&object.data) JsonObject(std::move(obj));
+        object = new JsonObject(std::move(obj));
     }
     template <> void Type::set(JsonList jlist) {
         free();
         type = LIST;
-        new (&list.data) JsonList(std::move(jlist));
+        list = new JsonList(std::move(jlist));
     }
     template <> void Type::set(int64_t i) {
         free();
@@ -147,7 +149,7 @@ namespace json {
     template <> void Type::set(std::string s) {
         free();
         type = STRING;
-        new (&str) std::string(std::move(s));
+        str = new std::string(std::move(s));
     }
     template <> void Type::set(std::nullptr_t n) {
         free();
@@ -157,15 +159,13 @@ namespace json {
     void Type::free() {
         switch (type) {
         case OBJECT:
-            reinterpret_cast<JsonObject&>(object.data).~JsonObject();
+            delete object;
             break;
-        case STRING: {
-            using namespace std;
-            str.~string();
+        case STRING: 
+            delete str;
             break;
-        }
         case LIST:
-            reinterpret_cast<JsonList&>(list.data).~JsonList();
+            delete list;
             break;
         default:
             break;

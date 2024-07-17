@@ -27,38 +27,13 @@ struct Type {
     enum { OBJECT, LIST, INTEGER, DOUBLE, BOOL, STRING, JSON_NULL } type;
 
 private:
-    /*
-     * There is a circular dependency decleration of this class and
-     * JsonObject: the iterator types for std::unordered_map cannot
-     * requres complete type of Type just to be in a return type.
-     *
-     * This gets around it by keeping structs with same size and alignment,
-     * and using placement new + excplicit destructor calls + reinterpret_cast.
-     */
-    struct DummyObj {
-        union {
-            unsigned char data[104];
-            uint64_t t;
-        };
-    };
-    struct DummyList {
-        union {
-            unsigned char data[32];
-            uint64_t t;
-        };
-    };
-
-    static_assert(sizeof(DummyObj) == 104, "Must match JsonObject");
-    static_assert(alignof(DummyObj) == 8, "Must match JsonObject");
-    static_assert(sizeof(DummyList) == 32, "Must match JsonList");
-    static_assert(alignof(DummyList) == 8, "Must match JsonList");
     union {
-        DummyObj object;
-        DummyList list;
+        JsonObject* object;
+        JsonList* list;
         int64_t integer;
         double decimal;
         bool boolean;
-        std::string str;
+        std::string* str;
     };
 
     void free();
@@ -209,8 +184,6 @@ private:
 
     std::list<std::string> keys;
 };
-static_assert(sizeof(JsonObject) <= 104, "Change json::Type to match");
-static_assert(alignof(JsonObject) == 8, "Change json::Type to match");
 
 /**
  * Class representing a Json list.
@@ -283,9 +256,6 @@ public:
 private:
     std::vector<json::Type> data;
 };
-
-static_assert(sizeof(JsonList) <= 32, "Change json::Type to match");
-static_assert(alignof(JsonList) == 8, "Change json::Type to match");
 
 namespace json {
 
