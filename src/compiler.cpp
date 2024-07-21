@@ -186,7 +186,7 @@ std::string instruction_mnemonic(InstructionSlotType i, feature_t features) {
             res += "label|";
         }
         if (oper.type & GEN_IMM) {
-            return "imm|";
+            res += "imm|";
         }
         if (!(oper.type & ANY_OPER_TYPE)) {
             res += "unknown|";
