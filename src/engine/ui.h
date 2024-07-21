@@ -201,6 +201,8 @@ public:
 
     void enable_hover(bool enable);
 
+    void enable_button(bool enable);
+
     event_t get_event() const;
 
     void set_event(event_t event);
@@ -219,6 +221,8 @@ private:
     bool border = true;
     bool down = false;
     bool hover_enabled = true;
+
+    bool disabled = false;
 };
 
 class Dropdown {

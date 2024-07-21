@@ -54,7 +54,9 @@ struct Instruction {
 
 typedef uint32_t flag_t;
 constexpr flag_t FLAG_ZERO_IX = 0;
+constexpr flag_t FLAG_CARRY_IX = 1;
 constexpr flag_t FLAG_ZERO_MASK = (1 << FLAG_ZERO_IX);
+constexpr flag_t FLAG_CARRY_MASK = (1 << FLAG_CARRY_IX);
 
 typedef std::vector<std::pair<std::string, DataSize>> RegisterNames;
 
@@ -65,7 +67,7 @@ public:
         bool changed;
     };
 
-    RegisterFile(RegisterNames register_names);
+    RegisterFile(RegisterNames register_names, flag_t enabled_flags);
 
     uint64_t gen_reg_count() const;
 

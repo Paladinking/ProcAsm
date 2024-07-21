@@ -4,8 +4,8 @@
 #include "json.h"
 #include <string>
 
-RegisterFile::RegisterFile(RegisterNames names)
-    : register_names{std::move(names)},
+RegisterFile::RegisterFile(RegisterNames names, flag_t enabled_flags)
+    : register_names{std::move(names)}, enabled_flags{enabled_flags},
       gen_registers(register_names.size(), {0, true}) {}
 
 void RegisterFile::set_genreg(uint64_t ix, DataSize size, uint64_t val) {
@@ -97,11 +97,23 @@ bool ProcessorTemplate::read_from_json(const JsonObject& obj) {
     if (!obj.has_key_of_type<JsonObject>("instructions")) {
         return false;
     }
+    if (!obj.has_key_of_type<std::string>("flags")) {
+        return false;
+    }
 
     name = obj.get<std::string>("name");
-    instrction_slots = obj.get<int64_t>("max_instructions");
+    instruction_slots = obj.get<int64_t>("max_instructions");
+    supported_flags = 0;
+    for (auto c: obj.get<std::string>("flags")) { 
+        if (c == 'z' || c == 'Z') {
+            supported_flags |= FLAG_ZERO_MASK;
+        } else if (c == 'c' || c == 'C') {
+            supported_flags |= FLAG_CARRY_MASK;
+        }
+    }
 
     const JsonList& in_ports = obj.get<JsonList>("in_ports");
+    this->in_ports.clear();
     for (const auto& val: in_ports) {
         if (const JsonObject* port = val.get<JsonObject>()) {
             PortTemplate t;
@@ -112,6 +124,7 @@ bool ProcessorTemplate::read_from_json(const JsonObject& obj) {
         }
     }
     const JsonList& out_ports = obj.get<JsonList>("out_ports");
+    this->out_ports.clear();
     for (const auto& val: out_ports) {
         if (const JsonObject* port = val.get<JsonObject>()) {
             PortTemplate t;
@@ -122,6 +135,7 @@ bool ProcessorTemplate::read_from_json(const JsonObject& obj) {
         }
     }
     const JsonList& registers = obj.get<JsonList>("registers");
+    this->register_names.clear();
     for (const auto& val: registers) {
         if (const JsonObject* reg = val.get<JsonObject>()) {
             if (!reg->has_key_of_type<std::string>("name")) {
@@ -155,6 +169,7 @@ bool ProcessorTemplate::read_from_json(const JsonObject& obj) {
         }
     }
     const JsonObject& instr = obj.get<JsonObject>("instructions");
+    instruction_set.clear();
     for (const auto& kv: instr) {
         if (const int64_t* i = kv.second.get<int64_t>()) {
             std::string key = kv.first;
@@ -177,7 +192,7 @@ Processor ProcessorTemplate::instantiate() const {
     for (auto o : out_ports) {
         out.push_back(std::move(o.instantiate()));
     }
-    return {std::move(in), std::move(out), instruction_set, register_names};
+    return {std::move(in), std::move(out), instruction_set, {register_names, supported_flags}};
 }
 
 Processor::Processor(std::vector<std::unique_ptr<BytePort>> in_ports,

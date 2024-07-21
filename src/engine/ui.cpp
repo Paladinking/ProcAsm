@@ -230,6 +230,9 @@ bool Button::is_pressed(int mouseX, int mouseY) const {
 void Button::set_border(const bool new_border) { border = new_border; }
 
 bool Button::handle_press(int x, int y, bool press) {
+    if (disabled) {
+        return false;
+    }
     if (!is_pressed(x, y)) {
         down = false;
     } else if (press) {
@@ -265,6 +268,11 @@ void Button::enable_hover(bool enable) {
     hover_enabled = enable;
 }
 
+void Button::enable_button(bool enable) {
+    disabled = !enable;
+    down = false;
+}
+
 event_t Button::get_event() const { return event; }
 
 void Button::set_event(event_t new_event) {
@@ -286,7 +294,9 @@ void Button::render(const int x_offset, const int y_offset,
         r.w -= 4;
         r.h -= 4;
     }
-    if (down) {
+    if (disabled) {
+        SDL_SetRenderDrawColor(gRenderer, UI_BUTTON_HOVER_COLOR);
+    } else if (down) {
         SDL_SetRenderDrawColor(gRenderer, UI_BUTTON_PRESSED_COLOR);
     } else if (hover) {
         SDL_SetRenderDrawColor(gRenderer, UI_BUTTON_HOVER_COLOR);

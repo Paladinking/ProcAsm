@@ -28,7 +28,9 @@ struct ProcessorTemplate {
 
     RegisterNames register_names {};
 
-    uint64_t instrction_slots;
+    uint64_t instruction_slots {0};
+
+    flag_t supported_flags {0};
 
     InstructionSet instruction_set {};
 

@@ -1,44 +1,107 @@
 {
-    "name" : "The json basic",
-    "in_ports": [
+    "processors": [
         {
-            "name" : "A",
-            "data_type" : "BYTE",
-            "port_type" : "BLOCKING"
+            "name": "The json basic",
+            "in_ports": [
+                {
+                    "name": "A",
+                    "data_type": "BYTE",
+                    "port_type": "BLOCKING"
+                },
+                {
+                    "name": "B",
+                    "data_type": "BYTE",
+                    "port_type": "BLOCKING"
+                }
+            ],
+            "out_ports": [
+                {
+                    "name": "Z",
+                    "data_type": "BYTE",
+                    "port_type": "BLOCKING"
+                }
+            ],
+            "registers": [
+                {
+                    "name": "R0",
+                    "type": "BYTE"
+                },
+                {
+                    "name": "R1",
+                    "type": "BYTE"
+                },
+                {
+                    "name": "R2",
+                    "type": "BYTE"
+                },
+                {
+                    "name": "R3",
+                    "type": "BYTE"
+                }
+            ],
+            "max_instructions": 8,
+            "flags": "z",
+            "instructions": {
+                "IN": 0,
+                "OUT": 1,
+                "MOV": 2,
+                "ADD": 3,
+                "SUB": 4,
+                "JEZ": 5,
+                "NOP": 6,
+                "QEU": 6
+            }
         },
         {
-            "name" : "B",
-            "data_type" : "BYTE",
-            "port_type" : "BLOCKING"
+            "name": "Second time",
+            "in_ports": [
+                {
+                    "name": "A",
+                    "data_type": "BYTE",
+                    "port_type": "BLOCKING"
+                },
+                {
+                    "name": "B",
+                    "data_type": "BYTE",
+                    "port_type": "BLOCKING"
+                }
+            ],
+            "out_ports": [
+                {
+                    "name": "Z",
+                    "data_type": "BYTE",
+                    "port_type": "BLOCKING"
+                }
+            ],
+            "registers": [
+                {
+                    "name": "R0",
+                    "type": "DWORD"
+                },
+                {
+                    "name": "R1",
+                    "type": "DWORD"
+                },
+                {
+                    "name": "R2",
+                    "type": "WORD"
+                },
+                {
+                    "name": "R3",
+                    "type": "QWORD"
+                }
+            ],
+            "max_instructions": 8,
+            "flags": "zc",
+            "instructions": {
+                "IN": 0,
+                "OUT": 1,
+                "MOV": 2,
+                "ADD": 3,
+                "SUB": 4,
+                "JEZ": 5,
+                "NOP": 6
+            }
         }
-    ],
-    "out_ports": [
-        {
-            "name" : "Z",
-            "data_type" : "BYTE",
-            "port_type" : "BLOCKING"
-        }
-    ],
-    "registers": [
-        {
-            "name": "R0",
-            "type": "BYTE"
-        },
-        {
-            "name": "R1",
-            "type": "BYTE"
-        },
-        {
-            "name": "R2",
-            "type": "BYTE"
-        },
-        {
-            "name": "R3",
-            "type": "BYTE"
-        }
-    ],
-    "max_instructions": 8,
-    "instructions": {
-        "IN" : 0, "OUT": 1, "MOV" : 2, "ADD": 3, "SUB": 4, "JEZ": 5, "NOP" : 6
-    }
+    ]
 }

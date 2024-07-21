@@ -12,59 +12,14 @@ void GameState::set_font_size() {
                                               window_state->screen_width,
                                           static_cast<double>(window_state->window_height) /
                                               window_state->screen_height);
-    if (new_dpi_scale < dpi_scale) {
+    if (new_dpi_scale != dpi_scale) {
         return;
     }
     LOG_DEBUG("Recalculating font size");
     dpi_scale = new_dpi_scale;
     int hpdi = 72, vdpi = 72;
     TTF_SetFontSizeDPI(gFont, 20, hpdi, vdpi);
-    int target_w, target_h;
-    int base_w, base_h;
-    int w, h;
-    TTF_SizeUTF8(gFont, "a", &base_w, &base_h);
-    target_w = static_cast<int>(base_w * dpi_scale);
-    target_h = static_cast<int>(base_h * dpi_scale);
-    TTF_SetFontSizeDPI(gFont, 20, hpdi, vdpi);
-    TTF_SizeUTF8(gFont, "a", &w, &h);
-
-    LOG_DEBUG("Finding font size for dpi %f", dpi_scale);
-    while (true) {
-        if (w == target_w && h == target_h) break;
-        int old_hdpi = hpdi;
-        int old_vdpi = vdpi;
-        if (w > target_w) {
-            --hpdi;
-        } else if (w < target_w) {
-            ++hpdi;
-        }
-        if (h > target_h) {
-            --vdpi;
-        } else if (h < target_h) {
-            ++vdpi;
-        }
-        int new_w, new_h;
-        TTF_SetFontSizeDPI(gFont, 20, hpdi, vdpi);
-        TTF_SizeUTF8(gFont, "a", &new_w, &new_h);
-        if (new_w <= target_w) {
-            w = new_w;
-        } else {
-            hpdi = old_hdpi;
-        }
-        if (new_h <= target_h) {
-            h = new_h;
-        } else {
-            vdpi = old_vdpi;
-        }
-        if ((w < new_w || w == target_w) && (h < new_h || h == target_h)) {
-            break;
-        }
-    }
-    LOG_DEBUG("Found font size");
-    TTF_SetFontSizeDPI(gFont, 20, hpdi, vdpi);
-
-    box.set_dpi_scale(dpi_scale);
-    processor_gui.set_dpi(dpi_scale);
+    return;
 }
 
 void GameState::handle_size_change() {
@@ -100,7 +55,7 @@ void GameState::init(WindowState *window_state) {
         self->top_comps.enable_hover(false);
         self->next_state.action = StateStatus::PUSH;
         LOG_DEBUG("Template: %s", self->templates[0].name.c_str());
-        self->next_state.new_state = new ProcessorMenu(self, self->templates);
+        self->next_state.new_state = new ProcessorMenu(self, self->templates, 0);
     };
 
     top_comps.set_window_state(window_state);
