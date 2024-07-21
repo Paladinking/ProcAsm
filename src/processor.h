@@ -32,6 +32,8 @@ struct ProcessorTemplate {
 
     flag_t supported_flags {0};
 
+    feature_t features {0};
+
     InstructionSet instruction_set {};
 
     bool read_from_json(const JsonObject& obj);
@@ -42,7 +44,7 @@ struct ProcessorTemplate {
 class Processor {
 public:
     Processor(std::vector<std::unique_ptr<BytePort>> in_ports, std::vector<std::unique_ptr<BytePort>> out_ports,
-              InstructionSet instruction_set, RegisterFile registers) noexcept;
+              InstructionSet instruction_set, RegisterFile registers, feature_t features) noexcept;
 
     bool compile_program(std::vector<std::string> lines, std::vector<ErrorMsg>& errors);
 
@@ -73,6 +75,7 @@ private:
 
     RegisterFile registers;
 
+    feature_t features;
 };
 
 

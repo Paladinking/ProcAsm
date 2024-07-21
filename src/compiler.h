@@ -5,21 +5,17 @@
 #include "editlines.h"
 #include <vector>
 #include <string>
+#include <map>
 #include <unordered_map>
 
-constexpr uint32_t NONE = 0;
 constexpr uint32_t GEN_REG = 1;
 constexpr uint32_t IN_PORT = 2;
 constexpr uint32_t OUT_PORT = 4;
 constexpr uint32_t LABEL = 8;
-constexpr uint32_t IMMU8 = 16;
-constexpr uint32_t IMMU16 = 32;
-constexpr uint32_t IMMU32 = 64;
-constexpr uint32_t IMMU64 = 128;
-constexpr uint32_t IMMS8 = 256;
-constexpr uint32_t IMMS16 = 512;
-constexpr uint32_t IMMS32 = 1024;
-constexpr uint32_t IMMS64 = 2048;
+constexpr uint32_t GEN_IMM = 16;
+
+constexpr uint32_t ANY_OPER_TYPE = GEN_REG | IN_PORT | OUT_PORT |
+                                   LABEL | GEN_IMM;
 
 struct OperandSlot {
     uint32_t type;
@@ -41,14 +37,15 @@ struct InstructionSlot {
     std::vector<OperandSlot> operands;
 };
 
-typedef std::unordered_map<std::string, InstructionSlotType> InstructionSet;
+typedef std::map<std::string, InstructionSlotType> InstructionSet;
 
-extern InstructionSet BASIC_INSTRUCTIONS;
+extern const InstructionSet ALL_INSTRUCTIONS;
+
 
 class Compiler {
 public:
     Compiler(const RegisterFile& registers, std::vector<std::string> in_ports, std::vector<std::string> out_ports,
-            std::vector<Instruction>& instructions, const InstructionSet& instruction_set);
+            std::vector<Instruction>& instructions, const InstructionSet& instruction_set, feature_t features);
     bool compile(const std::vector<std::string>& lines, std::vector<ErrorMsg>& errors);
 
 private:
@@ -62,6 +59,8 @@ private:
 
     std::vector<std::string> in_ports;
     std::vector<std::string> out_ports;
+
+    feature_t features;
 
     uint32_t gen_reg_count = 4;
 };

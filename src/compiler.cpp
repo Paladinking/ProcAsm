@@ -2,30 +2,13 @@
 #include "engine/log.h"
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cctype>
 #include <unordered_map>
 #include <utility>
 
-uint64_t immu_max(uint32_t flags) {
-    if (flags & IMMU64) {
-        return UINT64_MAX;
-    }
-    if (flags & IMMU32) {
-        return UINT32_MAX;
-    }
-    if (flags & IMMU16) {
-        return UINT16_MAX;
-    }
-    if (flags & IMMU8) {
-        return UINT8_MAX;
-    }
-    return 0;
-}
-
-uint64_t imms_max(uint32_t flags) { return (immu_max(flags >> 4) >> 1); }
-
 // Converts a bitmap of operands into a name
-std::string operand_name(uint32_t operand) {
+std::string operand_name(uint32_t operand, DataSize size) {
     switch (operand) {
     case GEN_REG:
         return "register";
@@ -35,24 +18,21 @@ std::string operand_name(uint32_t operand) {
         return "output port";
     case LABEL:
         return "label";
-    case IMMU8:
-        return "8-bit unsinged integer";
-    case IMMU16:
-        return "16-bit unsinged integer";
-    case IMMU32:
-        return "32-bit unsinged integer";
-    case IMMU64:
-        return "64-bit unsinged integer";
-    case IMMS8:
-        return "8-bit signed integer";
-    case IMMS16:
-        return "16-bit signed integer";
-    case IMMS32:
-        return "32-bit signed integer";
-    case IMMS64:
-        return "64-bit signed integer";
+    case GEN_IMM:
+        switch (size) {
+        case DataSize::BYTE:
+            return "8-bit integer";
+        case DataSize::WORD:
+            return "16-bit integer";
+        case DataSize::DWORD:
+            return "32-bit integer";
+        case DataSize::QWORD:
+            return "64-bit integer";
+        default:
+            return "integer";
+        }
     case LABEL | GEN_REG:
-        return "destination";
+        return "jump target";
     default:
         return "operand";
     }
@@ -116,14 +96,138 @@ bool read_int(const std::string &s, uint64_t max, int64_t &val) {
     return true;
 }
 
+bool read_gint(const std::string &s, DataSize &size, uint64_t &val) {
+    if (s.size() == 0) {
+        return false;
+    }
+    if (s[0] == '-') {
+        if (!read_uint(s.c_str() + 1, INT64_MAX, val)) {
+            return false;
+        }
+        if (val <= INT8_MAX) {
+            size = DataSize::BYTE;
+        } else if (val <= INT16_MAX) {
+            size = DataSize::WORD;
+        } else if (val <= INT32_MAX) {
+            size = DataSize::DWORD;
+        } else {
+            size = DataSize::QWORD;
+        }
+        val = (~val + 1);
+        return true;
+    }
+    if (!read_uint(s, UINT64_MAX, val)) {
+        return false;
+    }
+    if (val <= UINT8_MAX) {
+        size = DataSize::BYTE;
+    } else if (val <= UINT16_MAX) {
+        size = DataSize::WORD;
+    } else if (val <= UINT32_MAX) {
+        size = DataSize::DWORD;
+    } else {
+        size = DataSize::QWORD;
+    }
+    return true;
+}
+
+const InstructionSet ALL_INSTRUCTIONS = {
+    {"IN", InstructionSlotType::IN},      {"OUT", InstructionSlotType::OUT},
+    {"MOV", InstructionSlotType::MOVE_8}, {"ADD", InstructionSlotType::ADD},
+    {"SUB", InstructionSlotType::SUB},    {"JEZ", InstructionSlotType::JEZ},
+    {"NOP", InstructionSlotType::NOP}};
+
+void get_opers(InstructionSlotType i, feature_t features,
+               std::vector<OperandSlot> &opers) {
+    opers.resize(0);
+    switch (i) {
+    case InstructionSlotType::IN:
+        opers.push_back({GEN_REG, true});
+        opers.push_back({IN_PORT, true});
+        return;
+    case InstructionSlotType::OUT:
+        opers.push_back({GEN_REG, true});
+        opers.push_back({OUT_PORT, true});
+        return;
+    case InstructionSlotType::MOVE_8:
+        opers.push_back({GEN_REG, true});
+        opers.push_back({GEN_REG | GEN_IMM, true});
+        return;
+    case InstructionSlotType::ADD:
+    case InstructionSlotType::SUB:
+        opers.push_back({GEN_REG, true});
+        if (features & ProcessorFeature::ALU_IMM) {
+            opers.push_back({GEN_REG | GEN_IMM, true});
+        } else {
+            opers.push_back({GEN_REG, true});
+        }
+        return;
+    case InstructionSlotType::JEZ:
+        opers.push_back({LABEL, true});
+        return;
+    default:
+        return;
+    }
+}
+
+std::string instruction_mnemonic(InstructionSlotType i, feature_t features) {
+    std::vector<OperandSlot> opers;
+    get_opers(i, features, opers);
+    std::string res{};
+    for (const auto &oper : opers) {
+        res += '<';
+        if (oper.type & GEN_REG) {
+            res += "register|";
+        }
+        if (oper.type & (IN_PORT | OUT_PORT)) {
+            res += "port|";
+        }
+        if (oper.type & LABEL) {
+            res += "label|";
+        }
+        if (oper.type & GEN_IMM) {
+            return "imm|";
+        }
+        if (!(oper.type & ANY_OPER_TYPE)) {
+            res += "unknown|";
+        }
+        res.pop_back();
+        res += "> ";
+    }
+    if (res.size() > 0) {
+        res.pop_back();
+    }
+    return res;
+}
+
+uint32_t area_cost(InstructionSlotType slot, feature_t features) {
+    switch (slot) {
+    case InstructionSlotType::IN:
+    case InstructionSlotType::OUT:
+        return 10;
+    case InstructionSlotType::MOVE_8:
+        return 2;
+    case InstructionSlotType::ADD:
+    case InstructionSlotType::SUB:
+        return 6;
+    case InstructionSlotType::JEZ:
+        return 8;
+    case InstructionSlotType::NOP:
+        return 1;
+    default:
+        return 255;
+    }
+}
+
 Compiler::Compiler(const RegisterFile &registers,
                    std::vector<std::string> in_ports,
                    std::vector<std::string> out_ports,
                    std::vector<Instruction> &instructions,
-                   const InstructionSet &instruction_set)
+                   const InstructionSet &instruction_set,
+                   feature_t features)
     : registers{registers}, in_ports{std::move(in_ports)},
       out_ports{std::move(out_ports)}, instructions{instructions},
-      instruction_set{instruction_set} {}
+      instruction_set{instruction_set}, features{features} {}
 
 Instruction Compiler::parse(
     InstructionSlotType slot, const std::vector<OperandSlot> &slot_operands,
@@ -133,6 +237,7 @@ Instruction Compiler::parse(
     std::size_t i = 1;
     std::size_t slot_ix = 0;
     std::array<Operand, MAX_OPERANDS> out_operands{};
+    DataSize active_size = DataSize::UNKNOWN;
     memset(out_operands.data(), 0, MAX_OPERANDS * sizeof(Operand));
 
     for (; i < opers.size(); ++i, ++slot_ix) {
@@ -155,6 +260,7 @@ Instruction Compiler::parse(
                 out_operands[i - 1].type = GEN_REG;
                 out_operands[i - 1].reg = reg;
                 out_operands[i - 1].size = reg_size;
+                active_size = reg_size;
                 continue;
             }
         }
@@ -183,27 +289,25 @@ Instruction Compiler::parse(
             }
         }
         uint64_t max;
-        if ((max = immu_max(slot_operands[slot_ix].type)) != 0) {
+        if ((slot_operands[slot_ix].type & GEN_IMM) != 0) {
             uint64_t val;
-            if (read_uint(part, max, val)) {
-                out_operands[i - 1].type = IMMU64;
-                out_operands[i - 1].imm_u = val;
-                continue;
-            }
-        }
-        if ((max = imms_max(slot_operands[slot_ix].type)) != 0) {
-            int64_t val;
-            if (read_int(part, max, val)) {
-                out_operands[i - 1].type = IMMS64;
-                out_operands[i - 1].imm_s = val;
-                continue;
+            assert(active_size != DataSize::UNKNOWN);
+            DataSize size;
+            if (read_gint(part, size, val)) {
+                if (size <= active_size) {
+                    out_operands[i - 1].type = GEN_IMM;
+                    out_operands[i - 1].imm_u = val;
+                    continue;
+                }
             }
         }
         if (slot_operands[slot_ix].required ||
             slot_ix == slot_operands.size() - 1) {
-            error = {"Invalid " + operand_name(slot_operands[slot_ix].type) +
-                         " " + original_part,
-                     {0, static_cast<int>(start)}};
+            error = {
+                "Invalid " +
+                    operand_name(slot_operands[slot_ix].type, active_size) +
+                    " " + original_part,
+                {0, static_cast<int>(start)}};
             return {InstructionType::NOP};
         }
         --i;
@@ -227,22 +331,6 @@ Instruction Compiler::parse(
     }
     return {type, out_operands};
 };
-
-const std::array<std::vector<OperandSlot>, INSTRUCTION_SLOT_COUNT> OPERAND_MAP{{
-    {{GEN_REG, true}, {IN_PORT, true}},         // IN
-    {{GEN_REG, true}, {OUT_PORT, true}},        // OUT
-    {{GEN_REG, true}, {GEN_REG | IMMU8, true}}, // MOVE_8
-    {{GEN_REG, true}, {GEN_REG, true}},         // ADD
-    {{GEN_REG, true}, {GEN_REG, true}},         // SUB
-    {{LABEL, true}},                            // JEZ
-    {},                                         // NOP
-}};
-
-InstructionSet BASIC_INSTRUCTIONS = {
-    {"IN", InstructionSlotType::IN},      {"OUT", InstructionSlotType::OUT},
-    {"MOV", InstructionSlotType::MOVE_8}, {"ADD", InstructionSlotType::ADD},
-    {"SUB", InstructionSlotType::SUB},    {"JEZ", InstructionSlotType::JEZ},
-    {"NOP", InstructionSlotType::NOP}};
 
 /*
  * Divides a line into parts split on ',', ' ' and '\t'.
@@ -288,6 +376,13 @@ bool Compiler::compile(const std::vector<std::string> &lines,
     uint32_t instruction_count = 0;
     std::vector<Instruction> res{};
     std::unordered_map<std::string, uint32_t> labels{};
+
+    std::array<std::vector<OperandSlot>, INSTRUCTION_SLOT_COUNT> operand_map{};
+    for (const auto &i : instruction_set) {
+        auto &res = operand_map[static_cast<std::size_t>(i.second)];
+        get_opers(i.second, features, res);
+    }
+
     for (auto &line : lines) {
         ++row;
         std::size_t label_size;
@@ -325,7 +420,7 @@ bool Compiler::compile(const std::vector<std::string> &lines,
     }
     row = -1;
     LOG_DEBUG("Size: %d", instruction_set.size());
-    for (auto& s: instruction_set) {
+    for (auto &s : instruction_set) {
         LOG_DEBUG("INST: %s", s.first.c_str());
     }
     for (auto &line : lines) {
@@ -350,7 +445,7 @@ bool Compiler::compile(const std::vector<std::string> &lines,
         }
         ErrorMsg error;
         Instruction i = parse(
-            val->second, OPERAND_MAP[static_cast<std::size_t>(val->second)],
+            val->second, operand_map[static_cast<std::size_t>(val->second)],
             line, parts, std::move(labels), error);
         if (!error.empty) {
             error.pos.row = row;
@@ -365,10 +460,8 @@ bool Compiler::compile(const std::vector<std::string> &lines,
         for (int ix = 0; ix < MAX_OPERANDS; ++ix) {
             if (i.operands[ix].type == GEN_REG) {
                 base = base + sprintf(base, "r%llu, ", i.operands[ix].reg);
-            } else if (i.operands[ix].type == IMMU64) {
+            } else if (i.operands[ix].type == GEN_IMM) {
                 base = base + sprintf(base, "%llu, ", i.operands[ix].imm_u);
-            } else if (i.operands[ix].type == IMMS64) {
-                base = base + sprintf(base, "%lld, ", i.operands[ix].imm_s);
             } else if (i.operands[ix].type == LABEL) {
                 base = base + sprintf(base, "%d, ", i.operands[ix].label);
             } else if (i.operands[ix].type == IN_PORT) {

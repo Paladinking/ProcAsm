@@ -21,6 +21,11 @@ private:
     Component<TextBox> name {};
     std::array<Component<TextBox>, 4> register_types{};
     Component<TextBox> flags {};
+    Component<TextBox> features {};
+    Component<Button> add_instruction {};
+    Component<TextBox> instr_slots {};
+
+    Components instr_comps {};
 
     std::size_t selected_ix;
 

@@ -58,6 +58,33 @@ constexpr flag_t FLAG_CARRY_IX = 1;
 constexpr flag_t FLAG_ZERO_MASK = (1 << FLAG_ZERO_IX);
 constexpr flag_t FLAG_CARRY_MASK = (1 << FLAG_CARRY_IX);
 
+typedef uint64_t feature_t;
+namespace ProcessorFeature {
+    constexpr feature_t ALU = 1;
+    constexpr feature_t REGISTER_FILE = 2;
+    constexpr feature_t ALU_IMM = 4;
+
+    constexpr feature_t ALL = ALU | REGISTER_FILE;
+
+    constexpr inline uint32_t area(feature_t features) {
+        uint32_t area = 0;
+        if (features & ALU) {
+            area += 50;
+        }
+        if (features & REGISTER_FILE) {
+            area += 20;
+        }
+        return area;
+    } 
+}
+
+/**
+ * Returns the mnemonic for <i>.
+ */
+std::string instruction_mnemonic(InstructionSlotType i, feature_t features);
+
+uint32_t area_cost(InstructionSlotType type, feature_t features);
+
 typedef std::vector<std::pair<std::string, DataSize>> RegisterNames;
 
 class RegisterFile {

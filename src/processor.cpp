@@ -100,6 +100,9 @@ bool ProcessorTemplate::read_from_json(const JsonObject& obj) {
     if (!obj.has_key_of_type<std::string>("flags")) {
         return false;
     }
+    if (!obj.has_key_of_type<int64_t>("features")) {
+        return false;
+    }
 
     name = obj.get<std::string>("name");
     instruction_slots = obj.get<int64_t>("max_instructions");
@@ -111,6 +114,7 @@ bool ProcessorTemplate::read_from_json(const JsonObject& obj) {
             supported_flags |= FLAG_CARRY_MASK;
         }
     }
+    features = obj.get<int64_t>("features") & ProcessorFeature::ALL;
 
     const JsonList& in_ports = obj.get<JsonList>("in_ports");
     this->in_ports.clear();
@@ -192,16 +196,16 @@ Processor ProcessorTemplate::instantiate() const {
     for (auto o : out_ports) {
         out.push_back(std::move(o.instantiate()));
     }
-    return {std::move(in), std::move(out), instruction_set, {register_names, supported_flags}};
+    return {std::move(in), std::move(out), instruction_set, {register_names, supported_flags}, features};
 }
 
 Processor::Processor(std::vector<std::unique_ptr<BytePort>> in_ports,
                      std::vector<std::unique_ptr<BytePort>> out_ports,
                      InstructionSet instruction_set,
-                     RegisterFile registers) noexcept
+                     RegisterFile registers, feature_t features) noexcept
     : in_ports{std::move(in_ports)}, out_ports{std::move(out_ports)},
       instruction_set{std::move(instruction_set)},
-      registers{std::move(registers)}, pc{0}, ticks{0} {
+      registers{std::move(registers)}, pc{0}, ticks{0}, features{features} {
           LOG_DEBUG("Size: %d", instruction_set.size());
     instructions.push_back({InstructionType::NOP});
     instructions.back().line = 0;
@@ -219,7 +223,7 @@ bool Processor::compile_program(const std::vector<std::string> lines,
         out_names.push_back(port->get_name());
     }
     Compiler c{registers, std::move(in_names), std::move(out_names),
-               instructions, instruction_set};
+               instructions, instruction_set, features};
     valid = c.compile(lines, errors);
     if (!valid) {
         return false;
