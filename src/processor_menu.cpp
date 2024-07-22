@@ -19,6 +19,36 @@ int bit_count(feature_t map) {
 #endif
 }
 
+class InstructionInfo : public Menu {
+public:
+    InstructionInfo(State *parent, std::string name, InstructionSlotType slot)
+        : parent{parent}, name{std::move(name)}, slot{slot} {}
+
+    void init(WindowState *window_state) override {
+        Menu::init(window_state);
+        comps.set_window_state(window_state);
+        
+        comps.add(
+            Box(BASE_X + MENU_WIDTH / 2, BASE_Y, MENU_WIDTH, MENU_HEIGHT, 6));
+    }
+
+    void render() override {
+        parent->render();
+
+        SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0x5f);
+        SDL_Rect r = {0, 0, WIDTH, HEIGHT};
+        SDL_RenderFillRect(gRenderer, &r);
+
+        Menu::render();
+    }
+
+private:
+    State *parent;
+
+    std::string name;
+    InstructionSlotType slot;
+};
+
 class AddInstruction : public Menu {
 public:
     AddInstruction(State *parent, ProcessorTemplate &proc_template)
@@ -34,13 +64,12 @@ public:
         comps.add(TextBox(BASE_X + MENU_WIDTH / 2, BASE_Y + 20, MENU_WIDTH, 20,
                           "Add instruction", *window_state));
 
-
-        comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 30, BASE_Y + 45, 80, 50, "Name",
-                          *window_state));
+        comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 30, BASE_Y + 45, 80, 50,
+                          "Name", *window_state));
         comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 110, BASE_Y + 45, 315, 50,
                           "Mnemonic", *window_state));
-        comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 405, BASE_Y + 45, 60, 50, "Area",
-                         *window_state));
+        comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 405, BASE_Y + 45, 60, 50,
+                          "Area", *window_state));
 
         std::array<bool, INSTRUCTION_SLOT_COUNT> found{};
         found.fill(false);
@@ -69,18 +98,26 @@ public:
                        bit_count(~proc_template.features & required_b);
             });
 
-        void (*exit)(AddInstruction*, InstructionSlotType) = [](AddInstruction* self, InstructionSlotType slot) {
-            if (self->next_res.will_leave()) {
-                return;
-            }
-            for (auto& v : ALL_INSTRUCTIONS) {
-                if (v.second == slot) {
-                    self->proc_template.instruction_set.insert(v);
-                    self->menu_exit();
+        void (*exit)(AddInstruction *, InstructionSlotType) =
+            [](AddInstruction *self, InstructionSlotType slot) {
+                if (self->next_res.will_leave()) {
                     return;
                 }
-            }
-        };
+                for (auto &v : ALL_INSTRUCTIONS) {
+                    if (v.second == slot) {
+                        self->proc_template.instruction_set.insert(v);
+                        self->menu_exit();
+                        return;
+                    }
+                }
+            };
+
+        void (*info)(AddInstruction *, std::string, InstructionSlotType) =
+            [](AddInstruction *self, std::string name,
+               InstructionSlotType slot) {
+                self->next_res.action = StateStatus::PUSH;
+                self->next_res.new_state = new InstructionInfo(self->parent, name, slot);
+            };
 
         std::size_t ix = 0;
         for (auto it = to_show.begin(); it != to_show.begin() + count; ++it) {
@@ -99,11 +136,14 @@ public:
                 color.g -= 0x9f;
                 color.b -= 0x9f;
             }
-            comps.add(
-                Box(BASE_X + MENU_WIDTH / 2 + 30, y, MENU_WIDTH - 60, 50, 2))->set_border_color(color.r, color.g, color.b, color.a); 
+            comps
+                .add(Box(BASE_X + MENU_WIDTH / 2 + 30, y, MENU_WIDTH - 60, 50,
+                         2))
+                ->set_border_color(color.r, color.g, color.b, color.a);
             comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 30, y, 80, 50,
                               *it->first, *window_state));
-            comps.add(Box(BASE_X + MENU_WIDTH / 2 + 30, y, 80, 50, 2))->set_border_color(color.r, color.g, color.b, color.a);
+            comps.add(Box(BASE_X + MENU_WIDTH / 2 + 30, y, 80, 50, 2))
+                ->set_border_color(color.r, color.g, color.b, color.a);
             auto mem = comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 125, y, 200,
                                          50, mnemonic, *window_state));
             mem->set_align(Alignment::LEFT);
@@ -119,10 +159,11 @@ public:
                 ->set_text_color(color.r, color.g, color.b, color.a);
             select_buttons.push_back(
                 comps.add(Button(BASE_X + MENU_WIDTH / 2 + 485, y + 10, 30, 30,
-                                 "+", *window_state), exit, this, it->second));
+                                 "+", *window_state),
+                          exit, this, it->second));
             select_buttons.back()->enable_button(available);
             comps.add(Button(BASE_X + MENU_WIDTH / 2 + 545, y + 10, 30, 30, "i",
-                             *window_state));
+                             *window_state), info, this, *it->first, it->second);
             if (!available) {
                 feature_t missing = required & ~proc_template.features;
                 std::string s = ProcessorFeature::string(missing);
@@ -165,6 +206,11 @@ void ProcessorMenu::layout_instructions() {
     void (*remove_instr)(ProcessorMenu *, std::size_t) =
         [](ProcessorMenu *self, std::size_t ix) { self->instr_to_remove = ix; };
 
+    void (*info)(ProcessorMenu*, std::string, InstructionSlotType) = [](ProcessorMenu* self, std::string name, InstructionSlotType slot) {
+        self->next_res.action = StateStatus::PUSH;
+        self->next_res.new_state = new InstructionInfo(self, name, slot);
+    };
+
     std::size_t ix = selected_ix;
 
     std::size_t i = 0;
@@ -186,9 +232,10 @@ void ProcessorMenu::layout_instructions() {
         c.add(
             TextBox(BASE_X + MENU_WIDTH + 405, y, 60, 50, area, *window_state));
         c.add(Button(BASE_X + MENU_WIDTH + 485, y + 10, 30, 30, "x",
-                     *window_state), remove_instr, this, i);
+                     *window_state),
+              remove_instr, this, i);
         c.add(Button(BASE_X + MENU_WIDTH + 545, y + 10, 30, 30, "i",
-                     *window_state));
+                     *window_state), info, this, instr.first, instr.second);
         ++i;
     }
 
@@ -262,7 +309,8 @@ void ProcessorMenu::init(WindowState *window_state) {
         add_flag("Carry", FLAG_CARRY_MASK);
         self->flags->set_text(flags);
 
-        self->features->set_text(ProcessorFeature::string(self->templates[ix].features));
+        self->features->set_text(
+            ProcessorFeature::string(self->templates[ix].features));
 
         self->layout_instructions();
     };
