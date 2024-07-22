@@ -208,19 +208,16 @@ void Box::set_border_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     this->a = a;
 }
 
-Button::Button(SDL_Rect dims, std::string text, WindowState &ws)
+Button::Button(SDL_Rect dims, std::string text, const WindowState &ws)
     : Button(dims.x, dims.y, dims.w, dims.h, std::move(text), ws) {}
 
-Button::Button(int x, int y, int w, int h, std::string text, WindowState &ws)
+Button::Button(int x, int y, int w, int h, std::string text, const WindowState &ws)
     : Button(x, y, w, h, std::move(text), 20, ws) {}
 
 Button::Button(int x, int y, int w, int h, std::string text, int fs,
-               WindowState &ws)
+               const WindowState &ws)
     : text(x, y, w, h, std::move(text), fs, ws), event{0} {
 }
-
-Button::Button(SDL_Rect rect, std::string text, const WindowState &ws, void *)
-    : text(rect.x, rect.y, rect.w, rect.h, std::move(text), 20, ws) {}
 
 bool Button::is_pressed(int mouseX, int mouseY) const {
     return mouseX >= text.x && mouseX < text.x + text.w && mouseY >= text.y &&
@@ -382,7 +379,7 @@ void Dropdown::set_choices(const std::vector<std::string> &choices,
     }
     SDL_Rect r = {base.text.x, base.text.y + base.text.h, max_w + 8,
                   max_h + 16};
-    this->choices.push_back(Button(r, base_str, window_state, nullptr));
+    this->choices.push_back(Button(r, base_str, window_state));
     this->choices[0].text.set_align(Alignment::LEFT);
     this->choices[0].set_border(false);
     for (int i = 0; i < choices.size(); ++i) {
@@ -390,7 +387,7 @@ void Dropdown::set_choices(const std::vector<std::string> &choices,
         r = {base.text.x, base.text.y + base.text.h + (max_h + 16) * (i + 1),
              max_w + 8, max_h + 16};
         this->choices.push_back(
-            Button(r, " " + choices[i], window_state, nullptr));
+            Button(r, " " + choices[i], window_state));
         this->choices.back().text.set_align(Alignment::LEFT);
         this->choices.back().set_border(false);
     }

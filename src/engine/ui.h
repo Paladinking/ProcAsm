@@ -165,10 +165,10 @@ public:
      * Constructs a button with given size and text positioned at given
      * location.
      */
-    Button(SDL_Rect dims, std::string text, WindowState& ws);
-    Button(int x, int y, int w, int h, std::string text, WindowState &ws);
+    Button(SDL_Rect dims, std::string text, const WindowState& ws);
+    Button(int x, int y, int w, int h, std::string text, const WindowState &ws);
     Button(int x, int y, int w, int h, std::string text, int font_size,
-           WindowState &ws);
+           const WindowState &ws);
 
     /**
      * Returns true if the button contains the point (mouseX, mousey).
@@ -208,8 +208,6 @@ public:
     void set_event(event_t event);
 
 private:
-    Button(SDL_Rect rect, std::string text, const WindowState &ws, void*);
-
     bool handle_press(int x, int y, bool press);
 
     friend class Dropdown;
@@ -317,7 +315,7 @@ public:
         std::get<2>(comps).clear();
         std::get<3>(comps).clear();
         std::get<4>(comps).clear();
-        callbacks.clear();
+        callbacks.resize(1);
     }
 
     void set_window_state(WindowState* window_state) {

@@ -3,6 +3,7 @@
 #include "engine/game.h"
 #include "engine/menu.h"
 #include "processor.h"
+#include <limits>
 
 class ProcessorMenu : public Menu {
 public:
@@ -13,7 +14,16 @@ public:
 
     void render() override;
 
+    void resume() override;
+
+    void handle_down(SDL_Keycode key, Uint8 mouse) override;
+
+    void handle_up(SDL_Keycode key, Uint8 mouse) override;
 private:
+    void layout_instructions();
+
+    void remove_instruction(std::size_t ix);
+
     std::vector<ProcessorTemplate> &templates;
 
     std::vector<Component<Button>> proc_buttons {};
@@ -26,6 +36,8 @@ private:
     Component<TextBox> instr_slots {};
 
     Components instr_comps {};
+
+    std::size_t instr_to_remove = std::numeric_limits<std::size_t>::max();
 
     std::size_t selected_ix;
 

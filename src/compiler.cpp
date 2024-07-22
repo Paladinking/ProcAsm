@@ -219,6 +219,18 @@ uint32_t area_cost(InstructionSlotType slot, feature_t features) {
     }
 }
 
+feature_t required_features(InstructionSlotType slot) {
+    switch (slot) {
+    case InstructionSlotType::ADD:
+    case InstructionSlotType::SUB:
+        return ProcessorFeature::ALU;
+    case InstructionSlotType::JEZ:
+        return ProcessorFeature::ZERO_FLAG;
+    default:
+        return 0;
+    }
+}
+
 Compiler::Compiler(const RegisterFile &registers,
                    std::vector<std::string> in_ports,
                    std::vector<std::string> out_ports,
