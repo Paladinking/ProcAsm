@@ -21,15 +21,63 @@ int bit_count(feature_t map) {
 
 class InstructionInfo : public Menu {
 public:
-    InstructionInfo(State *parent, std::string name, InstructionSlotType slot)
-        : parent{parent}, name{std::move(name)}, slot{slot} {}
+    InstructionInfo(State *parent, std::string name, InstructionSlotType slot,
+                    feature_t features)
+        : parent{parent}, name{std::move(name)}, slot{slot},
+          features{features} {}
 
     void init(WindowState *window_state) override {
         Menu::init(window_state);
         comps.set_window_state(window_state);
-        
-        comps.add(
-            Box(BASE_X + MENU_WIDTH / 2, BASE_Y, MENU_WIDTH, MENU_HEIGHT, 6));
+        int base_y = BASE_Y + MENU_HEIGHT / 2 - MENU_HEIGHT / 4;
+
+        comps.add(Box(BASE_X + MENU_WIDTH / 2, base_y, MENU_WIDTH,
+                      MENU_HEIGHT / 2, 6));
+
+        comps.add(TextBox(BASE_X + MENU_WIDTH / 2, base_y + 20, MENU_WIDTH, 20,
+                          name, *window_state));
+
+        comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 30, base_y + 45, 80, 50,
+                          "Name", *window_state));
+        comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 110, base_y + 45, 315, 50,
+                          "Mnemonic", *window_state));
+        comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 405, base_y + 45, 60, 50,
+                          "Area", *window_state));
+
+        auto mnemonic = name + " " + instruction_mnemonic(slot, features);
+        auto area = std::to_string(instruction_area(slot, features));
+        const int y = base_y + 90;
+        comps.add(Box(BASE_X + MENU_WIDTH / 2 + 30, y, MENU_WIDTH - 60, 50, 2));
+        comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 30, y, 80, 50, name,
+                          *window_state));
+        comps.add(Box(BASE_X + MENU_WIDTH / 2 + 30, y, 80, 50, 2));
+        comps
+            .add(TextBox(BASE_X + MENU_WIDTH / 2 + 125, y, 200, 50, mnemonic,
+                         *window_state))
+            ->set_align(Alignment::LEFT);
+        comps.add(Box(BASE_X + MENU_WIDTH / 2 + 405, y, 60, 50, 2));
+        comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 405, y, 60, 50, area,
+                          *window_state));
+
+        auto req_features = ProcessorFeature::string(required_features(slot));
+        comps
+            .add(TextBox(BASE_X + MENU_WIDTH / 2 + 20, base_y + 150,
+                         MENU_WIDTH - 40, 20,
+                         "Required features: " + req_features, *window_state))
+            ->set_align(Alignment::LEFT);
+        comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 20, base_y + 175,
+                          MENU_WIDTH - 40, 20, "Description", *window_state));
+
+        comps
+            .add(TextBox(BASE_X + MENU_WIDTH / 2 + 20, base_y + 205,
+                         MENU_WIDTH - 40, 20, instruction_usage(slot, name),
+                         *window_state))
+            ->set_align(Alignment::LEFT);
+        comps
+            .add(TextBox(BASE_X + MENU_WIDTH / 2 + 20, base_y + 245,
+                         MENU_WIDTH - 40, 20, instruction_description(slot),
+                         *window_state))
+            ->set_align(Alignment::LEFT);
     }
 
     void render() override {
@@ -44,6 +92,8 @@ public:
 
 private:
     State *parent;
+
+    feature_t features;
 
     std::string name;
     InstructionSlotType slot;
@@ -116,7 +166,8 @@ public:
             [](AddInstruction *self, std::string name,
                InstructionSlotType slot) {
                 self->next_res.action = StateStatus::PUSH;
-                self->next_res.new_state = new InstructionInfo(self->parent, name, slot);
+                self->next_res.new_state = new InstructionInfo(
+                    self, name, slot, self->proc_template.features);
             };
 
         std::size_t ix = 0;
@@ -124,8 +175,8 @@ public:
             auto mnemonic =
                 *it->first + " " +
                 instruction_mnemonic(it->second, proc_template.features);
-            auto area =
-                std::to_string(area_cost(it->second, proc_template.features));
+            auto area = std::to_string(
+                instruction_area(it->second, proc_template.features));
             const int y = BASE_Y + 90 + 60 * ix;
             SDL_Color color = {UI_BORDER_COLOR};
 
@@ -163,7 +214,8 @@ public:
                           exit, this, it->second));
             select_buttons.back()->enable_button(available);
             comps.add(Button(BASE_X + MENU_WIDTH / 2 + 545, y + 10, 30, 30, "i",
-                             *window_state), info, this, *it->first, it->second);
+                             *window_state),
+                      info, this, *it->first, it->second);
             if (!available) {
                 feature_t missing = required & ~proc_template.features;
                 std::string s = ProcessorFeature::string(missing);
@@ -206,10 +258,12 @@ void ProcessorMenu::layout_instructions() {
     void (*remove_instr)(ProcessorMenu *, std::size_t) =
         [](ProcessorMenu *self, std::size_t ix) { self->instr_to_remove = ix; };
 
-    void (*info)(ProcessorMenu*, std::string, InstructionSlotType) = [](ProcessorMenu* self, std::string name, InstructionSlotType slot) {
-        self->next_res.action = StateStatus::PUSH;
-        self->next_res.new_state = new InstructionInfo(self, name, slot);
-    };
+    void (*info)(ProcessorMenu *, std::string, InstructionSlotType) =
+        [](ProcessorMenu *self, std::string name, InstructionSlotType slot) {
+            self->next_res.action = StateStatus::PUSH;
+            self->next_res.new_state = new InstructionInfo(
+                self, name, slot, self->templates[self->selected_ix].features);
+        };
 
     std::size_t ix = selected_ix;
 
@@ -218,8 +272,8 @@ void ProcessorMenu::layout_instructions() {
         auto mnemonic =
             instr.first + " " +
             instruction_mnemonic(instr.second, templates[ix].features);
-        auto area =
-            std::to_string(area_cost(instr.second, templates[ix].features));
+        auto area = std::to_string(
+            instruction_area(instr.second, templates[ix].features));
         const int y = BASE_Y + 90 + 60 * i;
         c.add(Box(BASE_X + MENU_WIDTH + 30, y, MENU_WIDTH - 60, 50, 2));
         c.add(TextBox(BASE_X + MENU_WIDTH + 30, y, 80, 50, instr.first,
@@ -235,7 +289,8 @@ void ProcessorMenu::layout_instructions() {
                      *window_state),
               remove_instr, this, i);
         c.add(Button(BASE_X + MENU_WIDTH + 545, y + 10, 30, 30, "i",
-                     *window_state), info, this, instr.first, instr.second);
+                     *window_state),
+              info, this, instr.first, instr.second);
         ++i;
     }
 

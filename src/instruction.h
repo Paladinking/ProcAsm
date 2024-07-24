@@ -120,7 +120,11 @@ constexpr inline uint32_t area(feature_t features) {
  */
 std::string instruction_mnemonic(InstructionSlotType i, feature_t features);
 
-uint32_t area_cost(InstructionSlotType type, feature_t features);
+uint32_t instruction_area(InstructionSlotType type, feature_t features);
+
+const char* instruction_description(InstructionSlotType i);
+
+std::string instruction_usage(InstructionSlotType i, const std::string& name);
 
 feature_t required_features(InstructionSlotType i);
 

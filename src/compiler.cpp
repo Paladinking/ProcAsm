@@ -200,7 +200,7 @@ std::string instruction_mnemonic(InstructionSlotType i, feature_t features) {
     return res;
 }
 
-uint32_t area_cost(InstructionSlotType slot, feature_t features) {
+uint32_t instruction_area(InstructionSlotType slot, feature_t features) {
     switch (slot) {
     case InstructionSlotType::IN:
     case InstructionSlotType::OUT:
@@ -216,6 +216,51 @@ uint32_t area_cost(InstructionSlotType slot, feature_t features) {
         return 1;
     default:
         return 255;
+    }
+}
+
+std::string instruction_usage(InstructionSlotType slot, const std::string& name) {
+    std::string s{};
+    switch (slot) {
+    case InstructionSlotType::IN:
+        s = " <port> <dest>";
+        break;
+    case InstructionSlotType::OUT:
+        s = " <port> <source>";
+        break;
+    case InstructionSlotType::MOVE_8:
+    case InstructionSlotType::ADD:
+    case InstructionSlotType::SUB:
+        s = " <dest> <source>";
+        break;
+    case InstructionSlotType::JEZ:
+        s = " <dest>";
+        break;
+    case InstructionSlotType::NOP:
+    default:
+        s = "";
+    }
+    return "Usage: " + name + s;
+}
+
+const char* instruction_description(InstructionSlotType slot) {
+    switch (slot) {
+    case InstructionSlotType::IN:
+        return "Reads a single value from an input port into <dest>.";
+    case InstructionSlotType::OUT:
+        return "Writes a single value from <source> into an output port.";
+    case InstructionSlotType::MOVE_8:
+        return "Copies a value from <source> into <dest>.";
+    case InstructionSlotType::ADD:
+        return "Adds the values contained in <source> and <dest>, and stores the result\nin <dest>.";
+    case InstructionSlotType::SUB:
+        return "Subtracts <source> from the value in <dest>, and stores the result\nin <dest>.";
+    case InstructionSlotType::JEZ:
+        return "Jumps to <dest> if Zero flag is set, otherwise does nothing.";
+    case InstructionSlotType::NOP:
+        return "Does nothing.";
+    default:
+        return "Unkown";
     }
 }
 
