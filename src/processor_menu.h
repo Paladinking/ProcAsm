@@ -1,11 +1,11 @@
 #ifndef PROCESSOR_MENU_H
 #define PROCESSOR_MENU_H
 #include "engine/game.h"
-#include "engine/menu.h"
 #include "processor.h"
+#include "overlay_menu.h"
 #include <limits>
 
-class ProcessorMenu : public Menu {
+class ProcessorMenu : public OverlayMenu {
 public:
     ProcessorMenu(State *parent, std::vector<ProcessorTemplate> &templates,
                   std::size_t selected_ix);
@@ -20,6 +20,8 @@ public:
 
     void handle_up(SDL_Keycode key, Uint8 mouse) override;
 private:
+    void change_processor(std::size_t ix);
+
     void layout_instructions();
 
     void remove_instruction(std::size_t ix);
@@ -29,19 +31,17 @@ private:
     std::vector<Component<Button>> proc_buttons {};
 
     Component<TextBox> name {};
-    std::array<Component<TextBox>, 4> register_types{};
+    std::array<Component<TextBox>, 6> register_types{};
     Component<TextBox> flags {};
     Component<TextBox> features {};
     Component<Button> add_instruction {};
     Component<TextBox> instr_slots {};
+    Component<TextBox> input_ports {};
+    Component<TextBox> output_ports {};
 
     Components instr_comps {};
 
-    std::size_t instr_to_remove = std::numeric_limits<std::size_t>::max();
-
     std::size_t selected_ix;
-
-    State *parent;
 };
 
 #endif

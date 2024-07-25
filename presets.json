@@ -28,11 +28,11 @@
                 },
                 {
                     "name": "R1",
-                    "type": "WORD"
+                    "type": "BYTE"
                 },
                 {
                     "name": "R2",
-                    "type": "DWORD"
+                    "type": "BYTE"
                 },
                 {
                     "name": "R3",
@@ -40,8 +40,7 @@
                 }
             ],
             "max_instructions": 8,
-            "flags": "z",
-            "features": 3,
+            "features": 11,
             "instructions": {
                 "IN": 0,
                 "OUT": 1,
@@ -49,8 +48,7 @@
                 "ADD": 3,
                 "SUB": 4,
                 "JEZ": 5,
-                "NOP": 6,
-                "QEU": 6
+                "NOP": 6
             }
         },
         {
@@ -93,7 +91,6 @@
                 }
             ],
             "max_instructions": 8,
-            "flags": "zc",
             "features": 0,
             "instructions": {
                 "IN": 0,

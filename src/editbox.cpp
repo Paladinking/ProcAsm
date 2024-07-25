@@ -1,16 +1,16 @@
 #include "editbox.h"
 #include "config.h"
-#include "engine/style.h"
 #include "engine/log.h"
+#include "engine/style.h"
 
 bool valid_char(unsigned char c) { return c >= 0x20 && c <= 0xef; }
 
-Editbox::Editbox(int x, int y, const WindowState &window_state) : x(x), y(y), window_state(&window_state) {}
-
+Editbox::Editbox(int x, int y, const WindowState &window_state)
+    : x(x), y(y), window_state(&window_state) {}
 
 TextPosition Editbox::find_pos(int mouse_x, int mouse_y) const {
     int row = (mouse_y - (y + BOX_TEXT_MARGIN)) / BOX_LINE_HEIGHT;
-    const std::vector<std::string>& text = lines.get_lines();
+    const std::vector<std::string> &text = lines.get_lines();
     if (row < 0) {
         row = 0;
     } else if (row >= text.size()) {
@@ -24,7 +24,6 @@ TextPosition Editbox::find_pos(int mouse_x, int mouse_y) const {
     }
     return {row, col};
 }
-
 
 void Editbox::input_char(char c) {
     if (!box_selected) {
@@ -81,7 +80,7 @@ void Editbox::reset_cursor_animation() {
     show_cursor = true;
 }
 
-void validate_string(std::string& s) {
+void validate_string(std::string &s) {
     while (true) {
         size_t pos = s.find("\r\n");
         if (pos == std::string::npos) {
@@ -100,7 +99,7 @@ void validate_string(std::string& s) {
         } else if (s[i] == '\r') {
             s[i] = '\n';
             ++i;
-        } else if(s[i] != '\n' && !valid_char(s[i])) {
+        } else if (s[i] != '\n' && !valid_char(s[i])) {
             s.erase(i, 1);
         } else {
             ++i;
@@ -108,29 +107,33 @@ void validate_string(std::string& s) {
     }
 }
 
-void Editbox::set_text(std::string& text) {
+void Editbox::set_text(std::string &text) {
     validate_string(text);
-    lines.set_selection({0, 0}, {lines.line_count() - 1, lines.line_size(lines.line_count() - 1)}, true);
+    lines.set_selection(
+        {0, 0},
+        {lines.line_count() - 1, lines.line_size(lines.line_count() - 1)},
+        true);
     lines.insert_str(text);
     lines.clear_undo_stack();
 }
 
 void Editbox::set_errors(std::vector<ErrorMsg> msgs) {
     error_msg.clear();
-    for (const auto& error: msgs) {
-        error_msg.emplace_back(- 8 - BOX_TEXT_MARGIN, BOX_TEXT_MARGIN + static_cast<int>(error.pos.row) * BOX_LINE_HEIGHT,
-                               8, BOX_LINE_HEIGHT, error.msg, *window_state);
+    for (const auto &error : msgs) {
+        error_msg.emplace_back(
+            -8 - BOX_TEXT_MARGIN,
+            BOX_TEXT_MARGIN + static_cast<int>(error.pos.row) * BOX_LINE_HEIGHT,
+            0, BOX_LINE_HEIGHT, error.msg, *window_state);
         error_msg.back().set_align(Alignment::RIGHT);
         error_msg.back().set_text_color(0xf0, 0, 0, 0xff);
     }
 }
 
-enum class CharGroup {
-    REGULAR, SYMBOL, SPACE, NEWLINE
-};
+enum class CharGroup { REGULAR, SYMBOL, SPACE, NEWLINE };
 
 CharGroup get_char_group(char c) {
-    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_') {
         return CharGroup::REGULAR;
     }
     if (c == ' ' || c == '\t') {
@@ -166,9 +169,12 @@ void Editbox::handle_keypress(SDL_Keycode key) {
     } else if (key == SDLK_END) {
         reset_cursor_animation();
         if (ctrl_pressed) {
-            lines.move_cursor({lines.line_count() - 1, lines.line_size(lines.line_count() - 1)}, shift_pressed);
+            lines.move_cursor({lines.line_count() - 1,
+                               lines.line_size(lines.line_count() - 1)},
+                              shift_pressed);
         } else {
-            lines.move_cursor({cursor.row, lines.line_size(cursor.row)}, shift_pressed);
+            lines.move_cursor({cursor.row, lines.line_size(cursor.row)},
+                              shift_pressed);
         }
         max_col = lines.get_cursor_pos().col;
     } else if (key == SDLK_TAB || key == SDLK_KP_TAB) {
@@ -180,7 +186,8 @@ void Editbox::handle_keypress(SDL_Keycode key) {
                             {static_cast<int>(lines.line_count() - 1),
                              lines.line_size(lines.line_count() - 1)},
                             true);
-    } else if ((key == 'z' && ctrl_pressed && shift_pressed) || key == 'y' && ctrl_pressed) {
+    } else if ((key == 'z' && ctrl_pressed && shift_pressed) ||
+               key == 'y' && ctrl_pressed) {
         reset_cursor_animation();
         if (lines.has_selection()) {
             lines.clear_selection();
@@ -196,7 +203,7 @@ void Editbox::handle_keypress(SDL_Keycode key) {
         }
     } else if (key == 'v' && ctrl_pressed) {
         reset_cursor_animation();
-        char* clip = SDL_GetClipboardText();
+        char *clip = SDL_GetClipboardText();
         std::string s{clip};
         validate_string(s);
         SDL_free(clip);
@@ -218,7 +225,8 @@ void Editbox::handle_keypress(SDL_Keycode key) {
             lines.clear_selection();
         }
         lines.move_cursor({cursor.row + 1, max_col}, shift_pressed);
-        if (lines.get_cursor_pos().col > max_col || cursor.row == lines.line_count() - 1) {
+        if (lines.get_cursor_pos().col > max_col ||
+            cursor.row == lines.line_count() - 1) {
             max_col = lines.get_cursor_pos().col;
         }
     } else if (key == SDLK_UP && !ctrl_pressed) {
@@ -270,7 +278,7 @@ void Editbox::handle_keypress(SDL_Keycode key) {
                 } else if (seen_space || new_group != group) {
                     break;
                 }
-            } 
+            }
         } else if (!lines.move_right(cursor, 1)) {
             return;
         }
@@ -308,63 +316,68 @@ void Editbox::render() {
     rect = {rect.x + 2, rect.y + 2, rect.w - 4, rect.h - 4};
     SDL_RenderFillRect(gRenderer, &rect);
 
-
     if (lines.has_selection()) {
         SDL_SetRenderDrawColor(gRenderer, 0x50, 0x50, 0x50, 0xff);
         int start = lines.get_selection_start().col;
-        for (int row = lines.get_selection_start().row; row < lines.get_selection_end().row; ++row) {
+        for (int row = lines.get_selection_start().row;
+             row < lines.get_selection_end().row; ++row) {
             int size = lines.line_size(row);
             SDL_Rect r = {x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * start,
                           y + BOX_LINE_HEIGHT * row + BOX_TEXT_MARGIN,
-                          BOX_CHAR_WIDTH * (size + 1 - start),
-                          BOX_LINE_HEIGHT};
+                          BOX_CHAR_WIDTH * (size + 1 - start), BOX_LINE_HEIGHT};
             SDL_RenderFillRect(gRenderer, &r);
             start = 0;
         }
         int col = lines.get_selection_end().col;
         SDL_Rect r = {x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * start,
-                      static_cast<int>(y + BOX_LINE_HEIGHT * lines.get_selection_end().row + BOX_TEXT_MARGIN),
-                      BOX_CHAR_WIDTH * (col - start),
-                      BOX_LINE_HEIGHT};
+                      static_cast<int>(
+                          y + BOX_LINE_HEIGHT * lines.get_selection_end().row +
+                          BOX_TEXT_MARGIN),
+                      BOX_CHAR_WIDTH * (col - start), BOX_LINE_HEIGHT};
         SDL_RenderFillRect(gRenderer, &r);
     }
 
-    for (auto& box: boxes) {
+    for (auto &box : boxes) {
         box.render(x + BOX_TEXT_MARGIN, y + BOX_TEXT_MARGIN, *window_state);
     }
-    for (auto& box: error_msg) {
+    for (auto &box : error_msg) {
         box.render(x, y, *window_state);
-    } 
+    }
 
     if (show_cursor) {
         TextPosition cursor_pos = lines.get_cursor_pos();
         SDL_SetRenderDrawColor(gRenderer, 0xf0, 0xf0, 0xf0, 0xff);
         if (!insert_mode) {
-            SDL_RenderDrawLine(gRenderer, x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * cursor_pos.col,
-                               y + BOX_LINE_HEIGHT  * cursor_pos.row + BOX_TEXT_MARGIN,
-                               x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * cursor_pos.col,
-                               y + BOX_LINE_HEIGHT * (cursor_pos.row + 1) + BOX_TEXT_MARGIN);
+            SDL_RenderDrawLine(
+                gRenderer,
+                x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * cursor_pos.col,
+                y + BOX_LINE_HEIGHT * cursor_pos.row + BOX_TEXT_MARGIN,
+                x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * cursor_pos.col,
+                y + BOX_LINE_HEIGHT * (cursor_pos.row + 1) + BOX_TEXT_MARGIN);
         } else {
-            SDL_RenderDrawLine(gRenderer, x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * cursor_pos.col,
-                               y + BOX_LINE_HEIGHT * (cursor_pos.row + 1) + BOX_TEXT_MARGIN,
-                               x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * (cursor_pos.col + 1),
-                               y + BOX_LINE_HEIGHT * (cursor_pos.row + 1) + BOX_TEXT_MARGIN);
+            SDL_RenderDrawLine(
+                gRenderer,
+                x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * cursor_pos.col,
+                y + BOX_LINE_HEIGHT * (cursor_pos.row + 1) + BOX_TEXT_MARGIN,
+                x + BOX_TEXT_MARGIN + BOX_CHAR_WIDTH * (cursor_pos.col + 1),
+                y + BOX_LINE_HEIGHT * (cursor_pos.row + 1) + BOX_TEXT_MARGIN);
         }
     }
 }
 void Editbox::set_dpi_scale(double dpi) {
-    for (auto& line: boxes) {
+    for (auto &line : boxes) {
         line.set_dpi_ratio(dpi);
     }
-    for (auto& box: error_msg) {
+    for (auto &box : error_msg) {
         box.set_dpi_ratio(dpi);
     }
 }
 bool Editbox::is_pressed(int mouse_x, int mouse_y) const {
-    return mouse_x > x && mouse_x < x + BOX_SIZE && mouse_y > y && mouse_y < y + BOX_SIZE;
+    return mouse_x > x && mouse_x < x + BOX_SIZE && mouse_y > y &&
+           mouse_y < y + BOX_SIZE;
 }
 void Editbox::change_callback(TextPosition start, TextPosition end,
-        int64_t removed) {
+                              int64_t removed) {
     max_col = lines.get_cursor_pos().col;
     if (boxes.size() == lines.line_count()) {
         for (int i = start.row; i <= end.row; ++i) {
@@ -374,7 +387,9 @@ void Editbox::change_callback(TextPosition start, TextPosition end,
     }
     if (boxes.size() < lines.line_count()) {
         for (int i = boxes.size(); i < lines.line_count(); ++i) {
-            boxes.emplace_back(0, 0 + BOX_LINE_HEIGHT * i, BOX_SIZE - 2 * BOX_TEXT_MARGIN, BOX_LINE_HEIGHT, "", *window_state);
+            boxes.emplace_back(0, 0 + BOX_LINE_HEIGHT * i,
+                               BOX_SIZE - 2 * BOX_TEXT_MARGIN, BOX_LINE_HEIGHT,
+                               "", *window_state);
             boxes.back().set_align(Alignment::LEFT);
         }
     } else if (boxes.size() > lines.line_count()) {
@@ -387,10 +402,11 @@ void Editbox::change_callback(TextPosition start, TextPosition end,
     }
 }
 
-void change_callback(TextPosition start, TextPosition end, int64_t removed, void* aux) {
-    static_cast<Editbox*>(aux)->change_callback(start, end, removed);
+void change_callback(TextPosition start, TextPosition end, int64_t removed,
+                     void *aux) {
+    static_cast<Editbox *>(aux)->change_callback(start, end, removed);
 }
 
-const std::vector<std::string>& Editbox::get_text() const {
+const std::vector<std::string> &Editbox::get_text() const {
     return lines.get_lines();
 }

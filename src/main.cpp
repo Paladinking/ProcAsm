@@ -6,6 +6,7 @@
 #include <engine/engine.h>
 #include <engine/game.h>
 #include <memory>
+#include "registers.h"
 
 class SDL_context {
 public:
@@ -55,7 +56,6 @@ private:
 };
 
 std::unique_ptr<SDL_context> context;
-
 
 int main(int argv, char* argc[]) {
     context = std::make_unique<SDL_context>();

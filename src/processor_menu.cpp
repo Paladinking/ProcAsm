@@ -19,16 +19,15 @@ int bit_count(feature_t map) {
 #endif
 }
 
-class InstructionInfo : public Menu {
+class InstructionInfo : public OverlayMenu {
 public:
     InstructionInfo(State *parent, std::string name, InstructionSlotType slot,
                     feature_t features)
-        : parent{parent}, name{std::move(name)}, slot{slot},
+        : OverlayMenu(parent), name{std::move(name)}, slot{slot},
           features{features} {}
 
     void init(WindowState *window_state) override {
-        Menu::init(window_state);
-        comps.set_window_state(window_state);
+        OverlayMenu::init(window_state);
         int base_y = BASE_Y + MENU_HEIGHT / 2 - MENU_HEIGHT / 4;
 
         comps.add(Box(BASE_X + MENU_WIDTH / 2, base_y, MENU_WIDTH,
@@ -52,14 +51,15 @@ public:
                           *window_state));
         comps.add(Box(BASE_X + MENU_WIDTH / 2 + 30, y, 80, 50, 2));
         comps
-            .add(TextBox(BASE_X + MENU_WIDTH / 2 + 125, y, 200, 50, mnemonic,
+            .add(TextBox(BASE_X + MENU_WIDTH / 2 + 125, y, 400, 50, mnemonic,
                          *window_state))
             ->set_align(Alignment::LEFT);
         comps.add(Box(BASE_X + MENU_WIDTH / 2 + 405, y, 60, 50, 2));
         comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 405, y, 60, 50, area,
                           *window_state));
 
-        auto req_features = ProcessorFeature::string(required_features(slot));
+        auto req_features =
+            ProcessorFeature::string(instruction_features(slot));
         comps
             .add(TextBox(BASE_X + MENU_WIDTH / 2 + 20, base_y + 150,
                          MENU_WIDTH - 40, 20,
@@ -80,33 +80,27 @@ public:
             ->set_align(Alignment::LEFT);
     }
 
-    void render() override {
-        parent->render();
-
-        SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0x5f);
-        SDL_Rect r = {0, 0, WIDTH, HEIGHT};
-        SDL_RenderFillRect(gRenderer, &r);
-
-        Menu::render();
-    }
-
 private:
-    State *parent;
-
     feature_t features;
 
     std::string name;
     InstructionSlotType slot;
 };
 
-class AddInstruction : public Menu {
+class AddInstruction : public OverlayMenu {
 public:
     AddInstruction(State *parent, ProcessorTemplate &proc_template)
-        : proc_template{proc_template}, parent{parent} {}
+        : OverlayMenu(parent), proc_template{proc_template} {}
 
     void init(WindowState *window_state) override {
-        Menu::init(window_state);
-        comps.set_window_state(window_state);
+        OverlayMenu::init(window_state);
+
+        layout();
+    }
+
+private:
+    void layout() {
+        comps.clear();
 
         comps.add(
             Box(BASE_X + MENU_WIDTH / 2, BASE_Y, MENU_WIDTH, MENU_HEIGHT, 6));
@@ -141,14 +135,14 @@ public:
 
         std::stable_sort(
             to_show.begin(), to_show.begin() + count, [this](Slot a, Slot b) {
-                feature_t required_a = required_features(a.second);
-                feature_t required_b = required_features(b.second);
+                feature_t required_a = instruction_features(a.second);
+                feature_t required_b = instruction_features(b.second);
 
                 return bit_count(~proc_template.features & required_a) <
                        bit_count(~proc_template.features & required_b);
             });
 
-        void (*exit)(AddInstruction *, InstructionSlotType) =
+        void (*add_instr)(AddInstruction *, InstructionSlotType) =
             [](AddInstruction *self, InstructionSlotType slot) {
                 if (self->next_res.will_leave()) {
                     return;
@@ -156,7 +150,7 @@ public:
                 for (auto &v : ALL_INSTRUCTIONS) {
                     if (v.second == slot) {
                         self->proc_template.instruction_set.insert(v);
-                        self->menu_exit();
+                        self->layout();
                         return;
                     }
                 }
@@ -180,7 +174,7 @@ public:
             const int y = BASE_Y + 90 + 60 * ix;
             SDL_Color color = {UI_BORDER_COLOR};
 
-            feature_t required = required_features(it->second);
+            feature_t required = instruction_features(it->second);
             bool available = (proc_template.features & required) == required;
             if (!available) {
                 color.r -= 0x9f;
@@ -195,7 +189,7 @@ public:
                               *it->first, *window_state));
             comps.add(Box(BASE_X + MENU_WIDTH / 2 + 30, y, 80, 50, 2))
                 ->set_border_color(color.r, color.g, color.b, color.a);
-            auto mem = comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 125, y, 200,
+            auto mem = comps.add(TextBox(BASE_X + MENU_WIDTH / 2 + 125, y, 400,
                                          50, mnemonic, *window_state));
             mem->set_align(Alignment::LEFT);
             mem->set_text_color(color.r, color.g, color.b, color.a);
@@ -211,7 +205,7 @@ public:
             select_buttons.push_back(
                 comps.add(Button(BASE_X + MENU_WIDTH / 2 + 485, y + 10, 30, 30,
                                  "+", *window_state),
-                          exit, this, it->second));
+                          add_instr, this, it->second));
             select_buttons.back()->enable_button(available);
             comps.add(Button(BASE_X + MENU_WIDTH / 2 + 545, y + 10, 30, 30, "i",
                              *window_state),
@@ -227,28 +221,266 @@ public:
         }
     }
 
-    void render() override {
-        parent->render();
-
-        SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0x5f);
-        SDL_Rect r = {0, 0, WIDTH, HEIGHT};
-        SDL_RenderFillRect(gRenderer, &r);
-
-        Menu::render();
-    }
-
-private:
     ProcessorTemplate &proc_template;
 
     std::vector<Component<Button>> select_buttons{};
+};
+
+class AddFeature : public OverlayMenu {
+public:
+    AddFeature(State *parent, ProcessorTemplate &proc_template)
+        : OverlayMenu(parent), proc_template{proc_template} {}
+
+    void init(WindowState *window_state) override {
+        OverlayMenu::init(window_state);
+        layout();
+    }
+
+private:
+    void layout() {
+        comps.clear();
+        comps.add(
+            Box(BASE_X + MENU_WIDTH / 2, BASE_Y, MENU_WIDTH, MENU_HEIGHT, 5));
+
+        comps.add(TextBox(BASE_X + MENU_WIDTH / 2, BASE_Y + 20, MENU_WIDTH, 20,
+                          "Add feature", *window_state));
+        comps.add(TextBox(BASE_X + MENU_WIDTH / 2,
+                          BASE_Y + MENU_HEIGHT / 2 + 20, MENU_WIDTH, 20,
+                          "Remove feature", *window_state));
+
+        std::size_t ix = 0;
+        void (*remove)(AddFeature *, feature_t) = [](AddFeature *self,
+                                                     feature_t feature) {
+            self->proc_template.features &= ~feature;
+            self->layout();
+        };
+
+        void (*add)(AddFeature *, feature_t) = [](AddFeature *self,
+                                                  feature_t feature) {
+            self->proc_template.features |= feature;
+            self->layout();
+        };
+
+        for (std::size_t i = 0; i < ProcessorFeature::COUNT; ++i) {
+            feature_t f = 1 << i;
+            if ((proc_template.features & f) &&
+                !(ProcessorFeature::dependents(f) & proc_template.features)) {
+                comps.add(Button(BASE_X + MENU_WIDTH / 2 + 20,
+                                 BASE_Y + 40 + MENU_HEIGHT / 2 + 30 * ix, 25,
+                                 25, "-", *window_state),
+                          remove, this, f);
+                comps
+                    .add(TextBox(BASE_X + MENU_WIDTH / 2 + 50,
+                                 BASE_Y + 40 + MENU_HEIGHT / 2 + 30 * ix,
+                                 MENU_WIDTH - 60, 25,
+                                 ProcessorFeature::string(f), *window_state))
+                    ->set_align(Alignment::LEFT);
+                ++ix;
+            }
+        }
+
+        ix = 0;
+        for (std::size_t i = 0; i < ProcessorFeature::COUNT; ++i) {
+            feature_t f = 1 << i;
+            if (ProcessorFeature::ALL & f) {
+                if ((proc_template.features & f) ||
+                    (ProcessorFeature::dependencies(f) &
+                     ~proc_template.features)) {
+                    continue;
+                }
+                comps.add(Button(BASE_X + MENU_WIDTH / 2 + 20,
+                                 BASE_Y + 40 + 30 * ix, 25, 25, "+",
+                                 *window_state),
+                          add, this, f);
+                comps
+                    .add(TextBox(BASE_X + MENU_WIDTH / 2 + 50,
+                                 BASE_Y + 40 + 30 * ix, MENU_WIDTH - 60, 25,
+                                 ProcessorFeature::string(f), *window_state))
+                    ->set_align(Alignment::LEFT);
+                ++ix;
+            }
+        }
+    }
 
     State *parent;
+
+    ProcessorTemplate &proc_template;
+};
+
+class AddRegister : public OverlayMenu {
+public:
+    AddRegister(State *parent, ProcessorTemplate &proc_template)
+        : OverlayMenu(parent), proc_template{proc_template} {}
+
+    void init(WindowState *window_state) override {
+        OverlayMenu::init(window_state);
+
+        layout();
+    }
+
+private:
+    void layout() {
+        comps.clear();
+
+        comps.add(
+            Box(BASE_X + MENU_WIDTH / 2, BASE_Y, MENU_WIDTH, MENU_HEIGHT, 5));
+
+        comps.add(TextBox(BASE_X + MENU_WIDTH / 2, BASE_Y + 20, MENU_WIDTH, 20,
+                          "Modify registers", *window_state));
+
+        int y = BASE_Y + 40;
+
+        int w = (MENU_WIDTH - 60 - 5 * 4) / 4;
+
+        auto has_name = [](const std::string &name, RegisterNames &names) {
+            for (auto &r : names) {
+                if (r.first == name) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        auto set_name = [&has_name](const std::string &prefix,
+                                    RegisterNames &names, std::string &name) {
+            std::size_t ix = 0;
+            do {
+                name = prefix + std::to_string(ix);
+                if (!has_name(name, names)) {
+                    break;
+                }
+                ++ix;
+            } while (true);
+        };
+
+        typedef void (*Callback_t)(AddRegister *, DataSize);
+
+        int x, new_y;
+
+        auto layout_regs = [this, &y, w, &x,
+                            &new_y](DataSize size, std::string name,
+                                    Callback_t add_reg, Callback_t remove_reg,
+                                    RegisterNames &names, uint64_t cost) {
+            int ry = y + 25;
+            comps.add(TextBox(x, y, w, 20, std::move(name), *window_state));
+            std::size_t count = 0;
+            for (auto &reg : names) {
+                if (reg.second == size) {
+                    ++count;
+                    comps
+                        .add(TextBox(x + 5, ry + 5, w - 10, 20, reg.first,
+                                     *window_state))
+                        ->set_align(Alignment::LEFT);
+                    comps.add(Box(x, ry, w, 30, 2));
+                    ry += 40;
+                }
+            }
+            comps.add(Button(x, ry, w / 2 - 5, 30, "+", *window_state), add_reg,
+                      this, size);
+            auto remove = comps.add(
+                Button(x + w / 2 + 5, ry, w / 2 - 5, 30, "-", *window_state),
+                remove_reg, this, size);
+            if (count == 0) {
+                remove->enable_button(false);
+            }
+            ry += 40;
+            comps.add(TextBox(x, ry, w, 20,
+                              "Area cost: " + std::to_string(cost),
+                              *window_state));
+            ry += 25;
+            x += w + 5;
+            new_y = ry > new_y ? ry : new_y;
+        };
+
+        if (proc_template.features & ProcessorFeature::REGISTER_FILE) {
+            set_name("R", proc_template.genreg_names, genreg_name);
+            comps
+                .add(TextBox(BASE_X + MENU_WIDTH / 2 + 30, y, MENU_WIDTH - 60,
+                             20, "General purpose registers:", *window_state))
+                ->set_align(Alignment::LEFT);
+            y += 30;
+            new_y = y;
+            x = BASE_X + MENU_WIDTH / 2 + 30;
+
+            Callback_t add_reg = [](AddRegister *self, DataSize size) {
+                self->proc_template.genreg_names.push_back(
+                    {self->genreg_name, size});
+                self->layout();
+            };
+            Callback_t remove_reg = [](AddRegister *self, DataSize size) {
+                auto &names = self->proc_template.genreg_names;
+                for (int64_t i = names.size() - 1; i >= 0; --i) {
+                    if (names[i].second == size) {
+                        names.erase(names.begin() + i);
+                        self->layout();
+                        return;
+                    }
+                }
+            };
+
+            layout_regs(DataSize::BYTE, "8-bit registers", add_reg, remove_reg,
+                        proc_template.genreg_names, 10);
+            if (proc_template.features & ProcessorFeature::REG_16) {
+                layout_regs(DataSize::WORD, "16-bit registers", add_reg,
+                            remove_reg, proc_template.genreg_names, 10);
+            }
+            if (proc_template.features & ProcessorFeature::REG_32) {
+                layout_regs(DataSize::DWORD, "32-bit registers", add_reg,
+                            remove_reg, proc_template.genreg_names, 10);
+            }
+            if (proc_template.features & ProcessorFeature::REG_64) {
+                layout_regs(DataSize::QWORD, "64-bit registers", add_reg,
+                            remove_reg, proc_template.genreg_names, 10);
+            }
+            y = new_y + 15;
+        }
+        if (proc_template.features & ProcessorFeature::REG_FLOAT) {
+            set_name("F", proc_template.floatreg_names, floatreg_name);
+            comps
+                .add(TextBox(BASE_X + MENU_WIDTH / 2 + 30, y, MENU_WIDTH - 60,
+                             20, "Floating point registers:", *window_state))
+                ->set_align(Alignment::LEFT);
+
+            Callback_t add_reg = [](AddRegister *self, DataSize size) {
+                self->proc_template.floatreg_names.push_back(
+                    {self->floatreg_name, size});
+                self->layout();
+            };
+            Callback_t remove_reg = [](AddRegister *self, DataSize size) {
+                auto &names = self->proc_template.floatreg_names;
+                for (int64_t i = names.size() - 1; i >= 0; --i) {
+                    if (names[i].second == size) {
+                        names.erase(names.begin() + i);
+                        self->layout();
+                        return;
+                    }
+                }
+            };
+
+            y += 30;
+            new_y = y;
+            x = BASE_X + MENU_WIDTH / 2 + 30;
+
+            layout_regs(DataSize::DWORD, "32-bit registers", add_reg,
+                        remove_reg, proc_template.floatreg_names, 12);
+            if (proc_template.features & ProcessorFeature::REG_DOUBLE) {
+                layout_regs(DataSize::QWORD, "64-bit registers", add_reg,
+                            remove_reg, proc_template.floatreg_names, 12);
+            }
+            y = new_y + 15;
+        }
+    }
+
+    std::string genreg_name{};
+    std::string floatreg_name{};
+
+    ProcessorTemplate &proc_template;
 };
 
 ProcessorMenu::ProcessorMenu(State *parent,
                              std::vector<ProcessorTemplate> &templates,
                              std::size_t selected_ix)
-    : parent{parent}, templates{templates}, selected_ix{selected_ix} {}
+    : OverlayMenu(parent), templates{templates}, selected_ix{selected_ix} {}
 
 void ProcessorMenu::layout_instructions() {
     Components &c = instr_comps;
@@ -256,7 +488,12 @@ void ProcessorMenu::layout_instructions() {
     c.set_window_state(window_state);
 
     void (*remove_instr)(ProcessorMenu *, std::size_t) =
-        [](ProcessorMenu *self, std::size_t ix) { self->instr_to_remove = ix; };
+        [](ProcessorMenu *self, std::size_t ix) {  
+            auto it = self->templates[self->selected_ix].instruction_set.begin();
+            std::advance(it, ix);
+            self->templates[self->selected_ix].instruction_set.erase(it);
+            self->layout_instructions();
+        };
 
     void (*info)(ProcessorMenu *, std::string, InstructionSlotType) =
         [](ProcessorMenu *self, std::string name, InstructionSlotType slot) {
@@ -279,7 +516,7 @@ void ProcessorMenu::layout_instructions() {
         c.add(TextBox(BASE_X + MENU_WIDTH + 30, y, 80, 50, instr.first,
                       *window_state));
         c.add(Box(BASE_X + MENU_WIDTH + 30, y, 80, 50, 2));
-        c.add(TextBox(BASE_X + MENU_WIDTH + 125, y, 200, 50, mnemonic,
+        c.add(TextBox(BASE_X + MENU_WIDTH + 125, y, 400, 50, mnemonic,
                       *window_state))
             ->set_align(Alignment::LEFT);
         c.add(Box(BASE_X + MENU_WIDTH + 405, y, 60, 50, 2));
@@ -305,70 +542,90 @@ void ProcessorMenu::layout_instructions() {
     }
 }
 
+void ProcessorMenu::change_processor(std::size_t ix) {
+    proc_buttons[selected_ix]->enable_button(true);
+    selected_ix = ix;
+    proc_buttons[ix]->enable_button(false);
+
+    name->set_text("Name: " + templates[ix].name);
+
+    std::size_t reg_ix = 0;
+
+    auto reg_text = [&ix, this, &reg_ix](DataSize size, std::string post, RegisterNames& names) {
+        uint32_t count = 0;
+        for (const auto &name : names) {
+            count += name.second == size;
+        }
+        if (count == 0) {
+            return;
+        }
+        post += (count > 1 ? " registers" : " register");
+        std::string s = std::to_string(count) + post;
+        register_types[reg_ix++]->set_text(std::move(s));
+    };
+
+    reg_text(DataSize::BYTE, " general purpose 8 bit", templates[ix].genreg_names);
+    reg_text(DataSize::WORD, " general purpose 16 bit", templates[ix].genreg_names);
+    reg_text(DataSize::DWORD, " general purpose 32 bit", templates[ix].genreg_names);
+    reg_text(DataSize::QWORD, " general purpose 64 bit", templates[ix].genreg_names);
+    reg_text(DataSize::DWORD, " floating point 32 bit", templates[ix].floatreg_names);
+    reg_text(DataSize::QWORD, " floating point 64 bit", templates[ix].floatreg_names);
+
+    if (reg_ix == 0) {
+        register_types[reg_ix++]->set_text("None");
+    }
+
+    for (; reg_ix < register_types.size(); ++reg_ix) {
+        register_types[reg_ix]->set_text("");
+    }
+    std::string flags = "";
+    bool first = true;
+    flag_t enabled_flags = ProcessorFeature::flags(templates[ix].features);
+    auto add_flag = [&flags, enabled_flags, &first](std::string name,
+                                                    flag_t mask) {
+        if (enabled_flags & mask) {
+            if (!first) {
+                flags += ", " + name;
+            } else {
+                flags += name;
+                first = false;
+            }
+        }
+    };
+    add_flag("Zero", FLAG_ZERO_MASK);
+    add_flag("Carry", FLAG_CARRY_MASK);
+    this->flags->set_text(flags);
+
+    features->set_text(ProcessorFeature::string(templates[ix].features));
+
+    
+    std::string inports;
+    if (templates[ix].in_ports.size() == 1) {
+        inports = "1 input port";
+    } else {
+        inports = std::to_string(templates[ix].in_ports.size()) + " input ports";
+    }
+    std::string outports;
+    if (templates[ix].out_ports.size() == 1) {
+        outports = "1 output port";
+    } else {
+        outports = std::to_string(templates[ix].out_ports.size()) + " output ports";
+    }
+
+    input_ports->set_text(std::move(inports));
+    output_ports->set_text(std::move(outports));
+
+    layout_instructions();
+}
+
 void ProcessorMenu::init(WindowState *window_state) {
-    Menu::init(window_state);
-    comps.set_window_state(window_state);
+    OverlayMenu::init(window_state);
 
     comps.add(Box(BASE_X, BASE_Y, MENU_WIDTH, MENU_HEIGHT, 6));
     comps.add(Box(BASE_X + MENU_WIDTH, BASE_Y, MENU_WIDTH, MENU_HEIGHT, 6));
 
-    void (*proc_btn)(ProcessorMenu *, std::size_t) = [](ProcessorMenu *self,
-                                                        std::size_t ix) {
-        self->proc_buttons[self->selected_ix]->enable_button(true);
-        self->selected_ix = ix;
-        self->proc_buttons[ix]->enable_button(false);
-
-        self->name->set_text("Name: " + self->templates[ix].name);
-
-        std::size_t reg_ix = 0;
-
-        auto reg_text = [&ix, &self, &reg_ix](DataSize size, std::string post) {
-            uint32_t count = 0;
-            for (const auto &name : self->templates[ix].register_names) {
-                count += name.second == size;
-            }
-            if (count == 0) {
-                return;
-            }
-            post += (count > 1 ? " registers" : " register");
-            std::string s = std::to_string(count) + post;
-            self->register_types[reg_ix++]->set_text(std::move(s));
-        };
-
-        reg_text(DataSize::BYTE, " general purpose 8 bit");
-        reg_text(DataSize::WORD, " general purpose 16 bit");
-        reg_text(DataSize::DWORD, " general purpose 32 bit");
-        reg_text(DataSize::QWORD, " general purpose 64 bit");
-
-        if (reg_ix == 0) {
-            self->register_types[reg_ix++]->set_text("None");
-        }
-
-        for (; reg_ix < self->register_types.size(); ++reg_ix) {
-            self->register_types[reg_ix]->set_text("");
-        }
-        std::string flags = "";
-        bool first = true;
-        auto add_flag = [&ix, &flags, &first, &self](std::string name,
-                                                     flag_t mask) {
-            if (self->templates[ix].supported_flags & mask) {
-                if (!first) {
-                    flags += ", " + name;
-                } else {
-                    flags += name;
-                    first = false;
-                }
-            }
-        };
-        add_flag("Zero", FLAG_ZERO_MASK);
-        add_flag("Carry", FLAG_CARRY_MASK);
-        self->flags->set_text(flags);
-
-        self->features->set_text(
-            ProcessorFeature::string(self->templates[ix].features));
-
-        self->layout_instructions();
-    };
+    void (*proc_btn)(ProcessorMenu *, std::size_t) =
+        [](ProcessorMenu *self, std::size_t ix) { self->change_processor(ix); };
 
     for (std::size_t i = 0; i < templates.size(); ++i) {
         const std::string &name = templates[i].name;
@@ -385,37 +642,71 @@ void ProcessorMenu::init(WindowState *window_state) {
     // Line
     comps.add(Box(BASE_X, FIELDS_BASE, MENU_WIDTH, 6, 3));
 
-    name = comps.add(
-        TextBox(BASE_X + 20, FIELDS_BASE + 30, 10, 5, "", *window_state));
+    name = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 30, MENU_WIDTH - 60, 5,
+                             "", *window_state));
     name->set_align(Alignment::LEFT);
-    auto regs = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 60, 10, 5,
-                                  "Registers: ", *window_state));
+
+    void (*add_register)(ProcessorMenu *) = [](ProcessorMenu *self) {
+        self->next_res.action = StateStatus::PUSH;
+        self->next_res.new_state =
+            new AddRegister(self, self->templates[self->selected_ix]);
+        self->comps.enable_hover(false);
+        self->instr_comps.enable_hover(false);
+    };
+
+    auto regs =
+        comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 60, MENU_WIDTH - 40, 5,
+                          "Registers: ", *window_state));
     regs->set_align(Alignment::LEFT);
 
-    for (int i = 0; i < 4; ++i) {
-        register_types[i] = comps.add(TextBox(
-            BASE_X + 30, FIELDS_BASE + 80 + 20 * i, 10, 5, "", *window_state));
+    comps.add(
+        Button(BASE_X + 105, FIELDS_BASE + 50, 25, 25, "+", *window_state),
+        add_register, this);
+
+    for (int i = 0; i < register_types.size(); ++i) {
+        register_types[i] =
+            comps.add(TextBox(BASE_X + 30, FIELDS_BASE + 80 + 20 * i,
+                              MENU_WIDTH - 60, 5, "", *window_state));
         register_types[i]->set_align(Alignment::LEFT);
     }
 
-    auto flags_title = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 170, 10, 5,
-                                         "Flags: ", *window_state));
+    auto flags_title =
+        comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 210, MENU_WIDTH - 40, 5,
+                          "Flags: ", *window_state));
     flags_title->set_align(Alignment::LEFT);
 
-    flags = comps.add(
-        TextBox(BASE_X + 30, FIELDS_BASE + 190, 10, 5, "", *window_state));
+    flags = comps.add(TextBox(BASE_X + 30, FIELDS_BASE + 230, MENU_WIDTH - 60,
+                              5, "", *window_state));
     flags->set_align(Alignment::LEFT);
 
-    auto features_title = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 220, 10,
-                                            5, "Features: ", *window_state));
+    auto features_title =
+        comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 260, MENU_WIDTH - 40, 5,
+                          "Features: ", *window_state));
     features_title->set_align(Alignment::LEFT);
 
-    features = comps.add(
-        TextBox(BASE_X + 30, FIELDS_BASE + 240, 10, 5, "", *window_state));
+    void (*add_feature)(ProcessorMenu *) = [](ProcessorMenu *self) {
+        self->comps.enable_hover(false);
+        self->instr_comps.enable_hover(false);
+        self->next_res.action = StateStatus::PUSH;
+        self->next_res.new_state =
+            new AddFeature(self, self->templates[self->selected_ix]);
+    };
+
+    comps.add(
+        Button(BASE_X + 95, FIELDS_BASE + 250, 25, 25, "+", *window_state),
+        add_feature, this);
+
+    features = comps.add(TextBox(BASE_X + 30, FIELDS_BASE + 285,
+                                 MENU_WIDTH - 60, 5, "", *window_state));
     features->set_align(Alignment::LEFT);
+    input_ports = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 400, MENU_WIDTH - 40, 5, "", *window_state));
+    input_ports->set_align(Alignment::LEFT);
+
+    output_ports = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 420, MENU_WIDTH - 40, 5, "", *window_state));
+    output_ports->set_align(Alignment::LEFT);
 
     auto inst_title =
-        comps.add(TextBox(BASE_X + MENU_WIDTH + 20, BASE_Y + 30, 10, 5,
+        comps.add(TextBox(BASE_X + MENU_WIDTH + 20, BASE_Y + 30, 120, 5,
                           "Instructions: ", *window_state));
     inst_title->set_align(Alignment::LEFT);
 
@@ -425,8 +716,6 @@ void ProcessorMenu::init(WindowState *window_state) {
                       "Mnemonic", *window_state));
     comps.add(TextBox(BASE_X + MENU_WIDTH + 405, BASE_Y + 45, 60, 50, "Area",
                       *window_state));
-    // comps.add(TextBox(BASE_X + MENU_WIDTH + 525, BASE_Y + 45, 60, 50, "Info",
-    //                   *window_state));
 
     void (*add_instr)(ProcessorMenu *) = [](ProcessorMenu *self) {
         self->comps.enable_hover(false);
@@ -442,32 +731,24 @@ void ProcessorMenu::init(WindowState *window_state) {
                   add_instr, this);
     instr_slots =
         comps.add(TextBox(BASE_X + MENU_WIDTH + 120, BASE_Y + MENU_HEIGHT - 80,
-                          80, 60, "", *window_state));
+                          MENU_WIDTH - 120, 60, "", *window_state));
     instr_slots->set_align(Alignment::LEFT);
+
 
     proc_btn(this, selected_ix);
 }
 
 void ProcessorMenu::resume() {
-    layout_instructions();
+    templates[selected_ix].validate();
+
+    change_processor(selected_ix);
+
     comps.enable_hover(true);
     instr_comps.enable_hover(true);
 }
 
 void ProcessorMenu::render() {
-    if (instr_to_remove < templates[selected_ix].instruction_set.size()) {
-        auto it = templates[selected_ix].instruction_set.begin();
-        std::advance(it, instr_to_remove);
-        templates[selected_ix].instruction_set.erase(it);
-        instr_to_remove = std::numeric_limits<std::size_t>::max();
-
-        layout_instructions();
-    }
-    parent->render();
-    SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0x5f);
-    SDL_Rect r = {0, 0, WIDTH, HEIGHT};
-    SDL_RenderFillRect(gRenderer, &r);
-    Menu::render();
+    OverlayMenu::render();
     instr_comps.render(0, 0);
 }
 

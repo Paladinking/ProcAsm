@@ -26,15 +26,19 @@ struct ProcessorTemplate {
     std::vector<PortTemplate> in_ports {};
     std::vector<PortTemplate> out_ports {};
 
-    RegisterNames register_names {};
+    RegisterNames genreg_names {};
+    RegisterNames floatreg_names {};
 
     uint64_t instruction_slots {0};
-
-    flag_t supported_flags {0};
 
     feature_t features {0};
 
     InstructionSet instruction_set {};
+
+    /**
+      * Removes any registers / ports / instructions not supported by features. 
+      **/ 
+    void validate();
 
     bool read_from_json(const JsonObject& obj);
 

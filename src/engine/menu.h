@@ -10,6 +10,8 @@ public:
 
     explicit Menu(const std::string &exit_input);
 
+    void init(WindowState* window_state) override;
+
     /**
      * Handles a down-event of keyboard or mouse.
      */

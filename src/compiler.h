@@ -2,6 +2,7 @@
 #define PROC_ASM_COMPILER_H
 
 #include "instruction.h"
+#include "registers.h"
 #include "editlines.h"
 #include <vector>
 #include <string>
@@ -13,9 +14,10 @@ constexpr uint32_t IN_PORT = 2;
 constexpr uint32_t OUT_PORT = 4;
 constexpr uint32_t LABEL = 8;
 constexpr uint32_t GEN_IMM = 16;
+constexpr uint32_t FLOAT_REG = 32;
 
 constexpr uint32_t ANY_OPER_TYPE = GEN_REG | IN_PORT | OUT_PORT |
-                                   LABEL | GEN_IMM;
+                                   LABEL | GEN_IMM | FLOAT_REG;
 
 struct OperandSlot {
     uint32_t type;

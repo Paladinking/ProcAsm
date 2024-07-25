@@ -37,7 +37,7 @@ void TextBox::generate_texture() {
     }
 
     SDL_Surface *text_surface =
-        TTF_RenderUTF8_Blended_Wrapped(font, text.c_str(), color, 0);
+        TTF_RenderUTF8_Blended_Wrapped(font, text.c_str(), color, w);
     if (text_surface == nullptr) {
         throw image_load_exception(std::string(TTF_GetError()));
     }

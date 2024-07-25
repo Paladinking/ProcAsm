@@ -9,6 +9,11 @@ Menu::Menu(const std::string &exit_input) : State() {
     this->exit_input = get_press_input(exit_input, "Escape");
 }
 
+void Menu::init(WindowState* window_state) {
+    State::init(window_state);
+    comps.set_window_state(window_state);
+}
+
 void Menu::handle_down(const SDL_Keycode key, const Uint8 mouse) {
     if (exit_input->is_targeted(key, mouse)) {
         menu_exit();

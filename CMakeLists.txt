@@ -20,14 +20,19 @@ set(ENGINGE_SRC
     ${ENGINE_DIR}/events.cpp
 )
 
+add_subdirectory(SoftFloat-3E)
+
 add_executable(embed tools/embed.c)
 
 set(FONT ${CMAKE_SOURCE_DIR}/flexi-ibm-vga-true.regular.ttf)
 set(FONT_OBJ ${CMAKE_CURRENT_BINARY_DIR}/font${CMAKE_C_OUTPUT_EXTENSION})
 
-add_executable(main src/main.cpp src/assembly.cpp src/editbox.cpp
-               src/editlines.cpp src/compiler.cpp src/processor.cpp src/json.cpp
-               src/problem.cpp src/processor_gui.cpp src/processor_menu.cpp ${ENGINGE_SRC} ${FONT_OBJ})
+add_executable(main src/main.cpp src/assembly.cpp src/editbox.cpp 
+               src/overlay_menu.cpp src/editlines.cpp src/compiler.cpp
+               src/processor.cpp src/json.cpp src/problem.cpp 
+               src/processor_gui.cpp src/processor_menu.cpp
+               src/registers.cpp
+               ${ENGINGE_SRC} ${FONT_OBJ})
 
 add_custom_command(OUTPUT ${FONT_OBJ} ${PROJECT_SOURCE_DIR}/tools/font.h
         COMMAND embed ARGS ${FONT} -H ${PROJECT_SOURCE_DIR}/tools/font.h -o ${FONT_OBJ} -smono_font
@@ -39,7 +44,7 @@ set(LIBRARIES
     $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
     $<IF:$<TARGET_EXISTS:SDL2_image::SDL2_image>,SDL2_image::SDL2_image,SDL2_image::SDL2_image-static>
     $<IF:$<TARGET_EXISTS:SDL2_ttf::SDL2_ttf>,SDL2_ttf::SDL2_ttf,SDL2_ttf::SDL2_ttf-static>
-    ZLIB::ZLIB
+    softfloat
 )
 
 target_link_libraries(main PUBLIC ${LIBRARIES})

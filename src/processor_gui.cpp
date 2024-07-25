@@ -56,7 +56,7 @@ void ProcessorGui::set_processor(Processor* new_processor) {
     comps.add(Button(BOX_SIZE + 10, BOX_SIZE - 180, 80, 80, "Step", *window_state), step_pressed, this);
 
     Callback_u register_change = [](uint64_t reg, ProcessorGui* gui) {
-        std::string name = gui->processor->registers.to_name(reg);
+        std::string name = gui->processor->registers.to_name_genreg(reg);
         auto val = gui->processor->registers.get_genreg(reg);
         gui->registers[reg]->set_text(name + ": " + std::to_string(val));
     };
@@ -65,16 +65,18 @@ void ProcessorGui::set_processor(Processor* new_processor) {
         gui->ticks->set_text("Ticks: " + std::to_string(ticks));
     };
 
-    for (uint64_t i = 0; i < processor->registers.gen_reg_count(); ++i) {
-        auto text = processor->registers.to_name(i);
-        auto reg = comps.add(TextBox(5 + BOX_SIZE - 120, 5 + BOX_LINE_HEIGHT * i, 8, BOX_LINE_HEIGHT, text, *window_state));
+    LOG_DEBUG("Reg count: %d", processor->registers.count_genreg());
+    for (uint64_t i = 0; i < processor->registers.count_genreg(); ++i) {
+        auto text = processor->registers.to_name_genreg(i);
+        LOG_INFO("Reg name: %s", text.c_str());
+        auto reg = comps.add(TextBox(5 + BOX_SIZE - 120, 5 + BOX_LINE_HEIGHT * i, 0, BOX_LINE_HEIGHT, text, *window_state));
         reg->set_align(Alignment::LEFT);
         registers.push_back(reg);
     }
 
-    ticks = comps.add(TextBox(5 + BOX_SIZE - 120, BOX_SIZE - 30, 8, BOX_LINE_HEIGHT, "Ticks: 0", *window_state));
+    ticks = comps.add(TextBox(5 + BOX_SIZE - 120, BOX_SIZE - 30, 100, BOX_LINE_HEIGHT, "Ticks: 0", *window_state));
     ticks->set_align(Alignment::LEFT);
-    flags = comps.add(TextBox(5 + BOX_SIZE - 120, BOX_SIZE - 30 - BOX_LINE_HEIGHT, 8, BOX_LINE_HEIGHT, "Z: 0", *window_state));
+    flags = comps.add(TextBox(5 + BOX_SIZE - 120, BOX_SIZE - 30 - BOX_LINE_HEIGHT, 100, BOX_LINE_HEIGHT, "Z: 0", *window_state));
     flags->set_align(Alignment::LEFT);
 
     for (uint32_t i = 0; i < processor->in_ports.size(); ++i) {
@@ -276,8 +278,8 @@ void ProcessorGui::update() {
         }
     }
     bool register_changed = false;
-    for (uint64_t i = 0; i < processor->registers.gen_reg_count(); ++i) {
-        if (processor->registers.poll_value(i, s)) {
+    for (uint64_t i = 0; i < processor->registers.count_genreg(); ++i) {
+        if (processor->registers.poll_value_genreg(i, s)) {
             register_changed = true;
             registers[i]->set_text(s);
         }

@@ -3,7 +3,6 @@
 #include <array>
 #include <cstdint>
 #include <string>
-#include <vector>
 
 constexpr uint32_t MAX_OPERANDS = 4;
 
@@ -60,32 +59,50 @@ constexpr flag_t FLAG_CARRY_MASK = (1 << FLAG_CARRY_IX);
 
 typedef uint64_t feature_t;
 namespace ProcessorFeature {
-constexpr feature_t ALU = 1;
-constexpr feature_t REGISTER_FILE = 2;
-constexpr feature_t ALU_IMM = 4;
-constexpr feature_t ZERO_FLAG = 8;
-constexpr feature_t CARRY_FLAG = 16;
+constexpr feature_t ALU = 1 << 0;
+constexpr feature_t REGISTER_FILE = 1 << 1;
+constexpr feature_t ALU_IMM = 1 << 2;
+constexpr feature_t ZERO_FLAG = 1 << 3;
+constexpr feature_t CARRY_FLAG = 1 << 4;
+constexpr feature_t REG_16 = 1 << 5;
+constexpr feature_t REG_32 = 1 << 6;
+constexpr feature_t REG_64 = 1 << 7;
+constexpr feature_t GEN_FLOAT = 1 << 8;
+constexpr feature_t REG_FLOAT = 1 << 9;
+constexpr feature_t REG_DOUBLE = 1 << 10;
+constexpr feature_t FPU = 1 << 11;
+
+constexpr std::size_t COUNT = 12;
 
 constexpr feature_t ALL =
-    ALU | REGISTER_FILE | ALU_IMM | ZERO_FLAG | CARRY_FLAG;
+    ALU | REGISTER_FILE | ALU_IMM | ZERO_FLAG | CARRY_FLAG |
+    REG_16 | REG_32 | REG_64 | GEN_FLOAT | REG_FLOAT | REG_DOUBLE
+    | FPU;
+
+inline constexpr flag_t flags(feature_t features) {
+    return (features & ZERO_FLAG ? FLAG_ZERO_MASK : 0) |
+           (features & CARRY_FLAG ? FLAG_CARRY_MASK : 0);
+}
 
 inline std::string string(feature_t features) {
     std::string res = "";
-    if (features & ALU) {
-        res += "ALU, ";
-    }
-    if (features & REGISTER_FILE) {
-        res += "Register file, ";
-    }
-    if (features & ALU_IMM) {
-        res += "ALU Immediate operands, ";
-    }
-    if (features & ZERO_FLAG) {
-        res += "Z flag, ";
-    }
-    if (features & CARRY_FLAG) {
-        res += "C flag, ";
-    }
+    auto add = [&res, &features](feature_t feature, const char* s) {
+        if (features & feature) {
+            res = (res + s) + ", ";
+        }
+    };
+    add(ALU, "ALU");
+    add(REGISTER_FILE, "Register file");
+    add(ALU_IMM, "ALU Immediate operands");
+    add(ZERO_FLAG, "Z flag");
+    add(CARRY_FLAG, "C flag");
+    add(REG_16, "16 bit registers");
+    add(REG_32, "32 bit registers");
+    add(REG_64, "64 bit registers");
+    add(GEN_FLOAT, "Float operations for general purpose registers");
+    add(REG_FLOAT, "32-bit floating point registers");
+    add(REG_DOUBLE, "64-bit floating point registers");
+    add(FPU, "FPU");
     if (res.size() == 0) {
         return "None";
     }
@@ -94,25 +111,58 @@ inline std::string string(feature_t features) {
     return res;
 }
 
+
 constexpr inline uint32_t area(feature_t features) {
     uint32_t area = 0;
-    if (features & ALU) {
-        area += 50;
-    }
-    if (features & REGISTER_FILE) {
-        area += 20;
-    }
-    if (features & ALU_IMM) {
-        area += 16;
-    }
-    if (features & ZERO_FLAG) {
-        area += 10;
-    }
-    if (features & CARRY_FLAG) {
-        area += 10;
-    }
+#define AREA_ADD(feature, a) if (features & feature) { area += a; }
+    AREA_ADD(ALU, 50);
+    AREA_ADD(REGISTER_FILE, 20);
+    AREA_ADD(ALU_IMM, 16);
+    AREA_ADD(ZERO_FLAG, 10);
+    AREA_ADD(CARRY_FLAG, 10);
+    AREA_ADD(REG_16, 16);
+    AREA_ADD(REG_32, 24);
+    AREA_ADD(REG_64, 30);
+    AREA_ADD(GEN_FLOAT, 4);
+    AREA_ADD(REG_FLOAT, 12);
+    AREA_ADD(REG_DOUBLE, 16);
+    AREA_ADD(FPU, 40);
+#undef AREA_ADD
     return area;
 }
+
+constexpr inline feature_t dependents(feature_t features) {
+    feature_t deps = 0;
+#define DEPEND_ADD(dep, feature) if (features & feature) { deps |= dep; }
+    DEPEND_ADD(REG_FLOAT, FPU);
+    DEPEND_ADD(REG_DOUBLE, REG_FLOAT);
+    DEPEND_ADD(GEN_FLOAT, REG_16);
+    DEPEND_ADD(GEN_FLOAT, FPU);
+    DEPEND_ADD(REG_64, REG_32);
+    DEPEND_ADD(REG_32, REG_16);
+    DEPEND_ADD(REG_16, REGISTER_FILE);
+    DEPEND_ADD(ALU_IMM, ALU);
+#undef DEPEND_ADD
+    return deps;
+}
+
+// Returns all features directly required by any feature
+// in <features>.
+constexpr inline feature_t dependencies(feature_t features) {
+    feature_t deps = 0;
+#define DEPEND_ADD(feature, dep) if (features & feature) { deps |= dep; }
+    DEPEND_ADD(REG_FLOAT, FPU);
+    DEPEND_ADD(REG_DOUBLE, REG_FLOAT);
+    DEPEND_ADD(GEN_FLOAT, REG_16);
+    DEPEND_ADD(GEN_FLOAT, FPU);
+    DEPEND_ADD(REG_64, REG_32);
+    DEPEND_ADD(REG_32, REG_16);
+    DEPEND_ADD(REG_16, REGISTER_FILE);
+    DEPEND_ADD(ALU_IMM, ALU);
+#undef DEPEND_ADD
+    return deps;
+}
+
 } // namespace ProcessorFeature
 
 /**
@@ -126,39 +176,6 @@ const char* instruction_description(InstructionSlotType i);
 
 std::string instruction_usage(InstructionSlotType i, const std::string& name);
 
-feature_t required_features(InstructionSlotType i);
+feature_t instruction_features(InstructionSlotType i);
 
-typedef std::vector<std::pair<std::string, DataSize>> RegisterNames;
-
-class RegisterFile {
-public:
-    struct Register {
-        uint64_t val;
-        bool changed;
-    };
-
-    RegisterFile(RegisterNames register_names, flag_t enabled_flags);
-
-    uint64_t gen_reg_count() const;
-
-    uint64_t get_genreg(uint64_t reg) const;
-
-    void set_genreg(uint64_t reg, DataSize size, uint64_t val);
-
-    bool from_name(const std::string &name, uint64_t &ix, DataSize &size) const;
-
-    void clear();
-
-    const std::string &to_name(uint64_t ix) const;
-
-    bool poll_value(uint64_t ix, std::string &s);
-
-    flag_t enabled_flags;
-    flag_t flags = 0;
-
-private:
-    RegisterNames register_names;
-
-    std::vector<Register> gen_registers{};
-};
 #endif

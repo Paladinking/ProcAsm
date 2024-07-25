@@ -252,9 +252,9 @@ const char* instruction_description(InstructionSlotType slot) {
     case InstructionSlotType::MOVE_8:
         return "Copies a value from <source> into <dest>.";
     case InstructionSlotType::ADD:
-        return "Adds the values contained in <source> and <dest>, and stores the result\nin <dest>.";
+        return "Adds the values contained in <source> and <dest>, and stores the result in <dest>.";
     case InstructionSlotType::SUB:
-        return "Subtracts <source> from the value in <dest>, and stores the result\nin <dest>.";
+        return "Subtracts <source> from the value in <dest>, and stores the result in <dest>.";
     case InstructionSlotType::JEZ:
         return "Jumps to <dest> if Zero flag is set, otherwise does nothing.";
     case InstructionSlotType::NOP:
@@ -264,7 +264,7 @@ const char* instruction_description(InstructionSlotType slot) {
     }
 }
 
-feature_t required_features(InstructionSlotType slot) {
+feature_t instruction_features(InstructionSlotType slot) {
     switch (slot) {
     case InstructionSlotType::ADD:
     case InstructionSlotType::SUB:
@@ -313,7 +313,7 @@ Instruction Compiler::parse(
         if ((slot_operands[slot_ix].type & GEN_REG) != 0) {
             uint64_t reg;
             DataSize reg_size;
-            if (registers.from_name(part, reg, reg_size)) {
+            if (registers.from_name_genreg(part, reg, reg_size)) {
                 out_operands[i - 1].type = GEN_REG;
                 out_operands[i - 1].reg = reg;
                 out_operands[i - 1].size = reg_size;

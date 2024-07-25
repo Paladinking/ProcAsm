@@ -362,19 +362,24 @@ public:
     }
 
     void handle_press(int x_offset, int y_offset, bool press) {
+        event_t ix = 0;
+        int64_t val = 1;
         for (auto &btn : std::get<3>(comps)) {
             if (btn.handle_press(*window_state, x_offset, y_offset, press)) {
-                event_t ix = btn.get_event();
-                callbacks[ix].callback(1, callbacks[ix].aux.get());
+                ix = btn.get_event();
             }
         }
         for (auto &dropdown : std::get<4>(comps)) {
             int64_t res = dropdown.handle_press(*window_state, x_offset, y_offset, press);
             if (res >= 0) {
-                event_t ix = dropdown.get_event();
-                callbacks[ix].callback(res - 1, callbacks[ix].aux.get());
+                ix = dropdown.get_event();
+                val = res - 1;
             }
-
+        }
+        if (ix != 0) {
+            // Delay callback until after iteration, in case callback changes
+            // this. Currently only allows one callback per press.
+            callbacks[ix].callback(val, callbacks[ix].aux.get());
         }
     }
 
