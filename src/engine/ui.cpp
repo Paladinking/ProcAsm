@@ -356,16 +356,17 @@ void Dropdown::enable_hover(bool enable) {
 void Dropdown::set_choices(const std::vector<std::string> &choices,
                            const WindowState &window_state) {
     this->choices.clear();
-    this->clear_choice();
     max_w = base.text.w - 8, max_h = 0;
     int tw, th;
     const std::string base_str = " -";
-    TTF_SizeUTF8(gFont, base_str.c_str(), &tw, &th);
-    if (tw > max_w) {
-        max_w = tw;
-    }
-    if (th > max_h) {
-        max_h = th;
+    if (default_value != "") {
+        TTF_SizeUTF8(gFont, base_str.c_str(), &tw, &th);
+        if (tw > max_w) {
+            max_w = tw;
+        }
+        if (th > max_h) {
+            max_h = th;
+        }
     }
     for (int i = 0; i < choices.size(); ++i) {
         const std::string str = " " + choices[i];
@@ -377,20 +378,26 @@ void Dropdown::set_choices(const std::vector<std::string> &choices,
             max_h = th;
         }
     }
-    SDL_Rect r = {base.text.x, base.text.y + base.text.h, max_w + 8,
+    SDL_Rect r;
+    int ix_offset = 0;
+    if (default_value != "") {
+        ix_offset = 1;
+        r = {base.text.x, base.text.y + base.text.h, max_w + 8,
                   max_h + 16};
-    this->choices.push_back(Button(r, base_str, window_state));
-    this->choices[0].text.set_align(Alignment::LEFT);
-    this->choices[0].set_border(false);
+        this->choices.push_back(Button(r, base_str, window_state));
+        this->choices[0].text.set_align(Alignment::LEFT);
+        this->choices[0].set_border(false);
+    }
     for (int i = 0; i < choices.size(); ++i) {
         const std::string &str = choices[i];
-        r = {base.text.x, base.text.y + base.text.h + (max_h + 16) * (i + 1),
+        r = {base.text.x, base.text.y + base.text.h + (max_h + 16) * (i + ix_offset),
              max_w + 8, max_h + 16};
         this->choices.push_back(
             Button(r, " " + choices[i], window_state));
         this->choices.back().text.set_align(Alignment::LEFT);
         this->choices.back().set_border(false);
     }
+    this->clear_choice();
 }
 
 event_t Dropdown::get_event() const { return event; }
@@ -423,8 +430,8 @@ int Dropdown::handle_press(WindowState &window_state, int x_offset,
             }
         }
         if (pressed != -1) {
-            ix = pressed - 1;
-            if (pressed == 0) {
+            ix = pressed - (default_value == "" ? 0 : 1);
+            if (pressed == 0 && default_value != "") {
                 base.set_text(default_value);
             } else {
                 base.set_text(choices[pressed].get_text().substr(1));
@@ -436,11 +443,29 @@ int Dropdown::handle_press(WindowState &window_state, int x_offset,
 }
 
 void Dropdown::clear_choice() {
-    ix = -1;
-    base.set_text(default_value);
+    if (default_value != "") {
+        ix = -1;
+        base.set_text(default_value);
+    } else {
+        ix = 0;
+        base.set_text(choices[0].get_text().substr(1));
+    }
 }
 
 int Dropdown::get_choice() const { return ix; }
+
+void Dropdown::set_choice(int new_ix) {
+    if (new_ix < 0) {
+        clear_choice();
+        return;
+    }
+    ix = new_ix;
+    if (default_value == "") {
+        base.set_text(choices[ix].get_text().substr(1));
+    } else {
+        base.set_text(choices[ix + 1].get_text().substr(1));
+    }
+}
 
 void Dropdown::set_text_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
 

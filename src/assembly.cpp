@@ -93,9 +93,16 @@ void GameState::resume() {
     top_comps.enable_hover(true);
 
     problem.reset();
-    processor.reset();
+
+    processor = templates[0].instantiate();
 
     processor_gui.set_processor(&processor);
+
+    std::vector<ErrorMsg> errors;
+    const auto& text = box.get_text();
+    problem.reset();
+    processor.compile_program(text, errors);
+    box.set_errors(errors);
 }
 
 void GameState::render() {

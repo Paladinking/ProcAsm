@@ -2,13 +2,13 @@
 #define PROC_ASM_PORT_H
 #include <string>
 #include <type_traits>
-#include "engine/engine.h"
 #include "engine/log.h"
 #include "json.h"
+#include <memory>
 #include "cassert"
 
 enum class PortDatatype {
-    BYTE, WORD, DWORD, QWORD
+    BYTE = 0, WORD = 1, DWORD = 2, QWORD = 3
 };
 
 constexpr inline std::size_t get_byte_size(PortDatatype type) {
@@ -40,7 +40,7 @@ constexpr inline PortDatatype from_c_type() {
 }
 
 enum class PortType {
-    BLOCKING
+    BLOCKING = 0
 };
 
 class BytePort;

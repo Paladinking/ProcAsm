@@ -71,13 +71,16 @@ constexpr feature_t GEN_FLOAT = 1 << 8;
 constexpr feature_t REG_FLOAT = 1 << 9;
 constexpr feature_t REG_DOUBLE = 1 << 10;
 constexpr feature_t FPU = 1 << 11;
+constexpr feature_t PORT_16 = 1 << 12;
+constexpr feature_t PORT_32 = 1 << 13;
+constexpr feature_t PORT_64 = 1 << 14;
 
-constexpr std::size_t COUNT = 12;
+constexpr std::size_t COUNT = 15;
 
 constexpr feature_t ALL =
     ALU | REGISTER_FILE | ALU_IMM | ZERO_FLAG | CARRY_FLAG |
     REG_16 | REG_32 | REG_64 | GEN_FLOAT | REG_FLOAT | REG_DOUBLE
-    | FPU;
+    | FPU | PORT_16 | PORT_32 | PORT_64;
 
 inline constexpr flag_t flags(feature_t features) {
     return (features & ZERO_FLAG ? FLAG_ZERO_MASK : 0) |
@@ -96,12 +99,15 @@ inline std::string string(feature_t features) {
     add(ALU_IMM, "ALU Immediate operands");
     add(ZERO_FLAG, "Z flag");
     add(CARRY_FLAG, "C flag");
-    add(REG_16, "16 bit registers");
-    add(REG_32, "32 bit registers");
-    add(REG_64, "64 bit registers");
+    add(REG_16, "16-bit registers");
+    add(REG_32, "32-bit registers");
+    add(REG_64, "64-bit registers");
     add(GEN_FLOAT, "Float operations for general purpose registers");
     add(REG_FLOAT, "32-bit floating point registers");
     add(REG_DOUBLE, "64-bit floating point registers");
+    add(PORT_16, "16-bit ports");
+    add(PORT_32, "32-bit ports");
+    add(PORT_64, "64-bit ports");
     add(FPU, "FPU");
     if (res.size() == 0) {
         return "None";
@@ -127,6 +133,9 @@ constexpr inline uint32_t area(feature_t features) {
     AREA_ADD(REG_FLOAT, 12);
     AREA_ADD(REG_DOUBLE, 16);
     AREA_ADD(FPU, 40);
+    AREA_ADD(PORT_16, 10);
+    AREA_ADD(PORT_32, 10);
+    AREA_ADD(PORT_64, 10);
 #undef AREA_ADD
     return area;
 }
@@ -142,6 +151,8 @@ constexpr inline feature_t dependents(feature_t features) {
     DEPEND_ADD(REG_32, REG_16);
     DEPEND_ADD(REG_16, REGISTER_FILE);
     DEPEND_ADD(ALU_IMM, ALU);
+    DEPEND_ADD(PORT_32, PORT_16);
+    DEPEND_ADD(PORT_64, PORT_32);
 #undef DEPEND_ADD
     return deps;
 }
@@ -159,6 +170,8 @@ constexpr inline feature_t dependencies(feature_t features) {
     DEPEND_ADD(REG_32, REG_16);
     DEPEND_ADD(REG_16, REGISTER_FILE);
     DEPEND_ADD(ALU_IMM, ALU);
+    DEPEND_ADD(PORT_32, PORT_16);
+    DEPEND_ADD(PORT_64, PORT_32);
 #undef DEPEND_ADD
     return deps;
 }

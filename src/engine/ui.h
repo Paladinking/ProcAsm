@@ -233,9 +233,14 @@ public:
              const std::vector<std::string> &choices,
              WindowState &window_state);
 
+    // Sets the choice to default, choice 0 if no default exists.
     void clear_choice();
 
+    // Gets the selected item index. If default returns -1.
     int get_choice() const;
+
+    // Sets the selected item index. If < 0, same as clear_choice.
+    void set_choice(int ix);
 
     void render(int x_offset, int y_offset,
                 const WindowState &window_state) const;
@@ -373,7 +378,7 @@ public:
             int64_t res = dropdown.handle_press(*window_state, x_offset, y_offset, press);
             if (res >= 0) {
                 ix = dropdown.get_event();
-                val = res - 1;
+                val = dropdown.get_choice();
             }
         }
         if (ix != 0) {

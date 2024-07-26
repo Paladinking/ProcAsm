@@ -477,6 +477,71 @@ private:
     ProcessorTemplate &proc_template;
 };
 
+class InfoPort : public OverlayMenu {
+public:
+    InfoPort(State *parent, PortTemplate &port, bool input, feature_t features)
+        : OverlayMenu(parent), port{port}, input{input}, features{features} {}
+
+    void init(WindowState *window_state) {
+        OverlayMenu::init(window_state);
+        layout();
+    }
+
+private:
+    int to_ix(PortDatatype type) { return static_cast<int>(type); }
+
+    int to_ix(PortType type) { return static_cast<int>(type); }
+
+    void layout() {
+        constexpr int x = BASE_X + MENU_WIDTH / 2;
+        int y = BASE_Y + MENU_HEIGHT / 4;
+        comps.add(Box(x, y, MENU_WIDTH, MENU_HEIGHT / 2, 5));
+        y += 20;
+        comps.add(
+            TextBox(x, y, MENU_WIDTH, 20, "Port " + port.name, *window_state));
+        y += 40;
+        typedef void (*Callback_t)(int64_t, InfoPort *);
+
+        Callback_t type_choice = [](int64_t ix, InfoPort *self) {
+            self->port.port_type = static_cast<PortType>(ix);
+        };
+
+        auto type_text = comps.add(TextBox(x + 20, y + 10, MENU_WIDTH - 40, 20,
+                                           "Port type: ", *window_state));
+        type_text->set_align(Alignment::LEFT);
+
+        auto type_drop = comps.add(
+            Dropdown(x + 110, y, 120, 40, "", {"Blocking"}, *window_state));
+        type_drop->set_choice(to_ix(port.port_type));
+
+        Callback_t size_choice = [](int64_t ix, InfoPort *self) {
+            self->port.data_type = static_cast<PortDatatype>(ix);
+        };
+
+        auto size_text = comps.add(TextBox(x + 250, y + 10, MENU_WIDTH - 40, 20,
+                                           "Data size: ", *window_state));
+        size_text->set_align(Alignment::LEFT);
+        std::vector<std::string> sizes{{"8-bit"}};
+        if (features & ProcessorFeature::PORT_16) {
+            sizes.push_back("16-bit");
+        }
+        if (features & ProcessorFeature::PORT_32) {
+            sizes.push_back("32-bit");
+        }
+        if (features & ProcessorFeature::PORT_64) {
+            sizes.push_back("64-bit");
+        }
+        auto size_drop =
+            comps.add(Dropdown(x + 340, y, 120, 40, "", sizes, *window_state),
+                      size_choice, this);
+        size_drop->set_choice(to_ix(port.data_type));
+    }
+
+    PortTemplate &port;
+    const bool input;
+    const feature_t features;
+};
+
 ProcessorMenu::ProcessorMenu(State *parent,
                              std::vector<ProcessorTemplate> &templates,
                              std::size_t selected_ix)
@@ -487,13 +552,13 @@ void ProcessorMenu::layout_instructions() {
     c.clear();
     c.set_window_state(window_state);
 
-    void (*remove_instr)(ProcessorMenu *, std::size_t) =
-        [](ProcessorMenu *self, std::size_t ix) {  
-            auto it = self->templates[self->selected_ix].instruction_set.begin();
-            std::advance(it, ix);
-            self->templates[self->selected_ix].instruction_set.erase(it);
-            self->layout_instructions();
-        };
+    void (*remove_instr)(ProcessorMenu *, std::size_t) = [](ProcessorMenu *self,
+                                                            std::size_t ix) {
+        auto it = self->templates[self->selected_ix].instruction_set.begin();
+        std::advance(it, ix);
+        self->templates[self->selected_ix].instruction_set.erase(it);
+        self->layout_instructions();
+    };
 
     void (*info)(ProcessorMenu *, std::string, InstructionSlotType) =
         [](ProcessorMenu *self, std::string name, InstructionSlotType slot) {
@@ -540,6 +605,107 @@ void ProcessorMenu::layout_instructions() {
         instr_slots->set_text_color(TEXT_COLOR);
         add_instruction->enable_button(true);
     }
+
+    int w = (MENU_WIDTH - 40 - 5 * 4) / 5;
+
+    std::string inports;
+    if (templates[selected_ix].in_ports.size() == 1) {
+        inports = "1 input port";
+    } else {
+        inports =
+            std::to_string(templates[ix].in_ports.size()) + " input ports";
+    }
+    input_ports->set_text(std::move(inports));
+    std::string outports;
+    if (templates[ix].out_ports.size() == 1) {
+        outports = "1 output port";
+    } else {
+        outports =
+            std::to_string(templates[ix].out_ports.size()) + " output ports";
+    }
+    output_ports->set_text(std::move(outports));
+
+    void (*add_inport)(ProcessorMenu *) = [](ProcessorMenu *self) {
+        std::string name = "A";
+        auto &ports = self->templates[self->selected_ix].in_ports;
+        for (std::size_t i = 0; i < ports.size();) {
+            if (ports[i].name == name) {
+                name[0] += 1;
+                i = 0;
+            } else {
+                ++i;
+            }
+        }
+        ports.push_back({name, PortDatatype::BYTE, PortType::BLOCKING});
+        self->layout_instructions();
+    };
+    void (*add_outport)(ProcessorMenu *) = [](ProcessorMenu *self) {
+        std::string name = "Z";
+        auto &ports = self->templates[self->selected_ix].out_ports;
+        for (std::size_t i = 0; i < ports.size();) {
+            if (ports[i].name == name) {
+                name[0] -= 1;
+                i = 0;
+            } else {
+                ++i;
+            }
+        }
+        ports.push_back({name, PortDatatype::BYTE, PortType::BLOCKING});
+        self->layout_instructions();
+    };
+    void (*remove_port)(ProcessorMenu *, std::vector<PortTemplate> *,
+                        std::size_t) = [](ProcessorMenu *self,
+                                          std::vector<PortTemplate> *ports,
+                                          std::size_t ix) {
+        ports->erase(ports->begin() + ix);
+        self->layout_instructions();
+    };
+
+    void (*info_port)(ProcessorMenu *, std::vector<PortTemplate> *,
+                      std::size_t) = [](ProcessorMenu *self,
+                                        std::vector<PortTemplate> *ports,
+                                        std::size_t ix) {
+        self->comps.enable_hover(false);
+        self->instr_comps.enable_hover(false);
+        self->next_res.action = StateStatus::PUSH;
+        bool input = ports == &self->templates[self->selected_ix].in_ports;
+        self->next_res.new_state =
+            new InfoPort(self, ports->at(ix), input,
+                         self->templates[self->selected_ix].features);
+    };
+
+    for (i = 0; i < templates[ix].in_ports.size(); ++i) {
+        c.add(Box(BASE_X + 20 + (w + 5) * i, FIELDS_BASE + 420, w, 75, 2));
+        c.add(TextBox(BASE_X + 20 + (w + 5) * i, FIELDS_BASE + 435, w, 5,
+                      templates[ix].in_ports[i].name, *window_state));
+        c.add(Button(BASE_X + 25 + (w + 5) * i, FIELDS_BASE + 450, 40, 40, "i",
+                     *window_state),
+              info_port, this, &templates[ix].in_ports, i);
+        c.add(Button(BASE_X + 20 + w - 45 + (w + 5) * i, FIELDS_BASE + 450, 40,
+                     40, "x", *window_state),
+              remove_port, this, &templates[ix].in_ports, i);
+    }
+    if (i < 5) {
+        c.add(Button(BASE_X + 20 + (w + 5) * i, FIELDS_BASE + 420, w, 75, "+",
+                     *window_state),
+              add_inport, this);
+    }
+    for (i = 0; i < templates[ix].out_ports.size(); ++i) {
+        c.add(Box(BASE_X + 20 + (w + 5) * i, FIELDS_BASE + 530, w, 75, 2));
+        c.add(TextBox(BASE_X + 20 + (w + 5) * i, FIELDS_BASE + 545, w, 5,
+                      templates[ix].out_ports[i].name, *window_state));
+        c.add(Button(BASE_X + 25 + (w + 5) * i, FIELDS_BASE + 560, 40, 40, "i",
+                     *window_state),
+              info_port, this, &templates[ix].out_ports, i);
+        c.add(Button(BASE_X + 20 + w - 45 + (w + 5) * i, FIELDS_BASE + 560, 40,
+                     40, "x", *window_state),
+              remove_port, this, &templates[ix].out_ports, i);
+    }
+    if (i < 5) {
+        c.add(Button(BASE_X + 20 + (w + 5) * i, FIELDS_BASE + 530, w, 75, "+",
+                     *window_state),
+              add_outport, this);
+    }
 }
 
 void ProcessorMenu::change_processor(std::size_t ix) {
@@ -551,7 +717,8 @@ void ProcessorMenu::change_processor(std::size_t ix) {
 
     std::size_t reg_ix = 0;
 
-    auto reg_text = [&ix, this, &reg_ix](DataSize size, std::string post, RegisterNames& names) {
+    auto reg_text = [&ix, this, &reg_ix](DataSize size, std::string post,
+                                         RegisterNames &names) {
         uint32_t count = 0;
         for (const auto &name : names) {
             count += name.second == size;
@@ -564,12 +731,18 @@ void ProcessorMenu::change_processor(std::size_t ix) {
         register_types[reg_ix++]->set_text(std::move(s));
     };
 
-    reg_text(DataSize::BYTE, " general purpose 8 bit", templates[ix].genreg_names);
-    reg_text(DataSize::WORD, " general purpose 16 bit", templates[ix].genreg_names);
-    reg_text(DataSize::DWORD, " general purpose 32 bit", templates[ix].genreg_names);
-    reg_text(DataSize::QWORD, " general purpose 64 bit", templates[ix].genreg_names);
-    reg_text(DataSize::DWORD, " floating point 32 bit", templates[ix].floatreg_names);
-    reg_text(DataSize::QWORD, " floating point 64 bit", templates[ix].floatreg_names);
+    reg_text(DataSize::BYTE, " general purpose 8 bit",
+             templates[ix].genreg_names);
+    reg_text(DataSize::WORD, " general purpose 16 bit",
+             templates[ix].genreg_names);
+    reg_text(DataSize::DWORD, " general purpose 32 bit",
+             templates[ix].genreg_names);
+    reg_text(DataSize::QWORD, " general purpose 64 bit",
+             templates[ix].genreg_names);
+    reg_text(DataSize::DWORD, " floating point 32 bit",
+             templates[ix].floatreg_names);
+    reg_text(DataSize::QWORD, " floating point 64 bit",
+             templates[ix].floatreg_names);
 
     if (reg_ix == 0) {
         register_types[reg_ix++]->set_text("None");
@@ -597,23 +770,6 @@ void ProcessorMenu::change_processor(std::size_t ix) {
     this->flags->set_text(flags);
 
     features->set_text(ProcessorFeature::string(templates[ix].features));
-
-    
-    std::string inports;
-    if (templates[ix].in_ports.size() == 1) {
-        inports = "1 input port";
-    } else {
-        inports = std::to_string(templates[ix].in_ports.size()) + " input ports";
-    }
-    std::string outports;
-    if (templates[ix].out_ports.size() == 1) {
-        outports = "1 output port";
-    } else {
-        outports = std::to_string(templates[ix].out_ports.size()) + " output ports";
-    }
-
-    input_ports->set_text(std::move(inports));
-    output_ports->set_text(std::move(outports));
 
     layout_instructions();
 }
@@ -699,10 +855,12 @@ void ProcessorMenu::init(WindowState *window_state) {
     features = comps.add(TextBox(BASE_X + 30, FIELDS_BASE + 285,
                                  MENU_WIDTH - 60, 5, "", *window_state));
     features->set_align(Alignment::LEFT);
-    input_ports = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 400, MENU_WIDTH - 40, 5, "", *window_state));
+    input_ports = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 400,
+                                    MENU_WIDTH - 40, 5, "", *window_state));
     input_ports->set_align(Alignment::LEFT);
 
-    output_ports = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 420, MENU_WIDTH - 40, 5, "", *window_state));
+    output_ports = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 510,
+                                     MENU_WIDTH - 40, 5, "", *window_state));
     output_ports->set_align(Alignment::LEFT);
 
     auto inst_title =
@@ -733,7 +891,6 @@ void ProcessorMenu::init(WindowState *window_state) {
         comps.add(TextBox(BASE_X + MENU_WIDTH + 120, BASE_Y + MENU_HEIGHT - 80,
                           MENU_WIDTH - 120, 60, "", *window_state));
     instr_slots->set_align(Alignment::LEFT);
-
 
     proc_btn(this, selected_ix);
 }

@@ -48,6 +48,29 @@ void ProcessorTemplate::validate() {
     if (!(features & ProcessorFeature::REG_DOUBLE)) {
         remove(DataSize::QWORD, floatreg_names);
     }
+    auto val_port = [this](PortTemplate& port) {
+        if (port.data_type == PortDatatype::QWORD){
+            if (!(features & ProcessorFeature::PORT_64)) {
+                port.data_type = PortDatatype::DWORD;
+            }
+        }
+        if (port.data_type == PortDatatype::DWORD){
+            if (!(features & ProcessorFeature::PORT_32)) {
+                port.data_type = PortDatatype::WORD;
+            }
+        }
+        if (port.data_type == PortDatatype::WORD){
+            if (!(features & ProcessorFeature::PORT_16)) {
+                port.data_type = PortDatatype::BYTE;
+            }
+        }
+    };
+    for (auto& port: in_ports) {
+        val_port(port);
+    }
+    for (auto& port: out_ports) {
+        val_port(port);
+    }
 }
 
 bool ProcessorTemplate::read_from_json(const JsonObject &obj) {
