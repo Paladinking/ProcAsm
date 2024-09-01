@@ -2,11 +2,13 @@
 #include "engine/engine.h"
 
 ByteProblem::ByteProblem() {
-    input_ports.emplace_back("Port 1");
-    input_ports.emplace_back("Port 2");
+    input_ports.push_back(nullptr);
+    input_ports.push_back(nullptr);
     input_changes.push_back(0);
     input_changes.push_back(0);
-    output_ports.emplace_back("Port 2");
+    output_ports.push_back(nullptr);
+    output_ports.push_back(nullptr);
+    output_changes.push_back(0);
     output_changes.push_back(0);
 }
 
@@ -20,14 +22,6 @@ void ByteProblem::reset() {
     for (auto& b: output_changes) {
         b = 1;
     }
-}
-
-ByteInputSlot<uint8_t> *ByteProblem::get_input_port(std::size_t ix) {
-    return &input_ports[ix];
-}
-
-ByteOutputSlot<uint8_t> *ByteProblem::get_output_port(std::size_t ix) {
-    return &output_ports[ix];
 }
 
 std::string ByteProblem::format_input(std::size_t ix) {
@@ -64,18 +58,27 @@ bool ByteProblem::poll_output(std::size_t ix, std::string& s) {
     return false;
 }
 
-void ByteProblem::clock_tick_input() {
-    if (input_ports[0].has_space()) {
-        input_ports[0].push_byte(ix);
-        ++ix;
-        input_changes[0] = 1;
+void ByteProblem::in_tick() {
+    if (output_ports[0] != nullptr) {
+        output_ports[0]->prepare_pop();
     }
 }
 
-void ByteProblem::clock_tick_output() {
-    if (output_ports[0].has_data()) {
-        last_output = output_ports[0].get_byte();
-        output_ports[0].pop_data();
-        output_changes[0] = 1;
+void ByteProblem::out_tick() {
+    if (input_ports[0] != nullptr) {
+        if (input_ports[0]->push_byte(ix)) {
+            ++ix;
+            input_changes[0] = 1;
+        }
+    }
+}
+
+void ByteProblem::clock_tick() {
+    if (output_ports[0] != nullptr) {
+        uint8_t res;
+        if (output_ports[0]->pop_byte(res)) {
+            last_output = res;
+            output_changes[0] = 1;
+        }
     }
 }

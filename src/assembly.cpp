@@ -131,9 +131,9 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
     if (processor.is_running()) {
         ticks_passed += delta;
         while (ticks_passed > TICK_DELAY) {
-            problem.clock_tick_output();
+            problem.out_tick();
             processor.clock_tick();
-            problem.clock_tick_input();
+            problem.in_tick();
             ticks_passed -= TICK_DELAY;
         }
     }

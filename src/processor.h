@@ -20,11 +20,36 @@ enum class ProcessorChange {
 
 class Processor;
 
+struct PortLayout {
+    uint8_t up;
+    uint8_t right;
+    uint8_t down;
+    uint8_t left;
+
+    inline uint16_t total() const noexcept {
+        return up + right + down + left;
+    }
+
+    inline std::string name(uint16_t ix) const noexcept {
+        assert(ix < total());
+        if (ix < up) {
+            return "U" + std::to_string(ix);
+        }
+        if (ix < up + right) {
+            return "R" + std::to_string(ix - up);
+        }
+        if (ix < up + right + down) {
+            return "D" + std::to_string(ix - up - right);
+        }
+        return "L" + std::to_string(ix - up - right - down);
+    }
+};
+
 struct ProcessorTemplate {
     std::string name;
 
-    std::vector<PortTemplate> in_ports {};
-    std::vector<PortTemplate> out_ports {};
+    std::vector<PortTemplate> ports {};
+    PortLayout port_layout;
 
     RegisterNames genreg_names {};
     RegisterNames floatreg_names {};
@@ -45,12 +70,18 @@ struct ProcessorTemplate {
     Processor instantiate() const;
 };
 
+
 class Processor {
 public:
-    Processor(std::vector<std::unique_ptr<BytePort>> in_ports, std::vector<std::unique_ptr<BytePort>> out_ports,
-              InstructionSet instruction_set, RegisterFile registers, feature_t features) noexcept;
+    Processor(std::vector<std::shared_ptr<SharedPort>> ports,
+              PortLayout port_layout, InstructionSet instruction_set,
+              RegisterFile registers, feature_t features) noexcept;
 
     bool compile_program(std::vector<std::string> lines, std::vector<ErrorMsg>& errors);
+
+    void in_tick();
+
+    void out_tick();
 
     void clock_tick();
 
@@ -67,12 +98,15 @@ private:
     bool valid = false;
     bool running = false;
 
-    std::vector<std::unique_ptr<BytePort>> in_ports;
-    std::vector<std::unique_ptr<BytePort>> out_ports;
+    // All ports: up, right, down, left
+    std::vector<std::shared_ptr<SharedPort>> ports;
+    PortLayout port_layout;
 
     std::vector<Instruction> instructions {};
 
     InstructionSet instruction_set;
+
+    std::uint32_t pending_pc;
 
     std::uint32_t pc;
     std::uint64_t ticks;

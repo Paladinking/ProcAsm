@@ -14,13 +14,11 @@ public:
 
     void reset();
 
-    ByteInputSlot<uint8_t>* get_input_port(std::size_t ix);
+    void in_tick();
 
-    ByteOutputSlot<uint8_t>* get_output_port(std::size_t ix);
+    void out_tick();
 
-    void clock_tick_input();
-
-    void clock_tick_output();
+    void clock_tick();
 
     std::string format_input(std::size_t ix);
 
@@ -36,8 +34,10 @@ private:
 
     int16_t last_output;
 
-    std::vector<ByteInputSlot<uint8_t>> input_ports;
-    std::vector<ByteOutputSlot<uint8_t>> output_ports;
+    // Ports that problem inputs are written to
+    std::vector<SharedPort*> input_ports;
+    // Ports that problem results are received from
+    std::vector<SharedPort*> output_ports;
 
     std::vector<uint8_t> input_changes;
     std::vector<uint8_t> output_changes;

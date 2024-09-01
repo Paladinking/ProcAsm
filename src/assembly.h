@@ -43,7 +43,6 @@ private:
 
     Editbox box;
 
-
     Processor processor;
     ByteProblem problem {};
     ProcessorGui processor_gui{};

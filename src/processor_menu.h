@@ -36,8 +36,7 @@ private:
     Component<TextBox> features {};
     Component<Button> add_instruction {};
     Component<TextBox> instr_slots {};
-    Component<TextBox> input_ports {};
-    Component<TextBox> output_ports {};
+    Component<TextBox> ports {};
 
     Components instr_comps {};
 

@@ -25,8 +25,6 @@ void ProcessorGui::set_processor(Processor* new_processor) {
     output_wires.clear();
     registers.clear();
 
-    in_ports.clear();
-    out_ports.clear(); 
     comps.clear();
 
     Callback run_pressed = [](ProcessorGui* gui) {
@@ -44,9 +42,9 @@ void ProcessorGui::set_processor(Processor* new_processor) {
     Callback step_pressed = [](ProcessorGui* gui) {
         LOG_DEBUG("Step pressed");
         if (gui->processor->is_valid()) {
-            gui->problem->clock_tick_output();
+            gui->problem->out_tick();
             gui->processor->clock_tick();
-            gui->problem->clock_tick_input();
+            gui->problem->in_tick();
             auto ticks_str = "Ticks: " + std::to_string(gui->processor->ticks);
             gui->ticks->set_text(ticks_str);
         }
@@ -79,165 +77,85 @@ void ProcessorGui::set_processor(Processor* new_processor) {
     flags = comps.add(TextBox(5 + BOX_SIZE - 120, BOX_SIZE - 30 - BOX_LINE_HEIGHT, 100, BOX_LINE_HEIGHT, "Z: 0", *window_state));
     flags->set_align(Alignment::LEFT);
 
-    for (uint32_t i = 0; i < processor->in_ports.size(); ++i) {
-        std::string s = processor->in_ports[i]->format();
-        std::string name = "In " + processor->in_ports[i]->get_name();
-        auto box = comps.add(TextBox(30 + 110 * i, -50, 80, BOX_LINE_HEIGHT, name, *window_state));
-        in_ports.push_back(box);
-        box = comps.add(TextBox(30 + 110 * i, -50 + BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, s, *window_state));
-        in_ports.push_back(box);
-        comps.add(Box(30 + 110 * i, -60, 80, 60, 2));
-    }
-    for (uint32_t i = 0; i < processor->out_ports.size(); ++i) {
-        std::string name = "Out " + processor->out_ports[i]->get_name();
-        auto box = comps.add(TextBox(30 + 110 * i, BOX_SIZE + 10, 80, BOX_LINE_HEIGHT, name, *window_state));
-        out_ports.push_back(box);
-        box = comps.add(TextBox(30 + 110 * i, BOX_SIZE + 10 + BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, "", *window_state));
-        out_ports.push_back(box);
-        comps.add(Box(30 + 110 * i, BOX_SIZE, 80, 60, 2));
-    }
-
-
-    inputport_map.clear();
-    outputport_map.clear();
-    
-    void(*on_in_dropdown)(int64_t, int, ProcessorGui*) = [](int64_t select, int ix, ProcessorGui* gui) {
-        for (auto& port: gui->problem->input_ports) {
-            port.set_port(nullptr);
-        }
-        std::size_t port = -1;
-
-        if (select != -1) {
-            port = gui->inputport_map[ix][select];
-            auto* p = gui->processor->in_ports[port].get();
-            auto* ptr = gui->problem->input_ports[ix].check_port(p);
-            gui->problem->input_ports[ix].set_port(ptr);
-            gui->input_wires[ix]->set_points({
-                       {30 + 110.0f * ix, -140}, {70 + 110.0f * ix, -140}, {50 + 110.0f * port, -80},
-                       {70 + 110.0f * ix , -140}, {50 + 110.0f * port, -80}, {90 + 110.0f * port, -80},
-                       {30 + 110.0f * ix, -200}, {70 + 110.0f * ix, -200}, {30 + 110.0f * ix, -140},
-                       {70 + 110.0f * ix, -200}, {70 + 110.0f * ix, -140}, {30 + 110.0f * ix, -140},
-                       {50 + 110.0f * port, -80}, {90 + 110.0f * port, -80}, {50 + 110.0f * port, -60},
-                       {90 + 110.0f * port, -80}, {90 + 110.0f * port, -60}, {50 + 110.0f * port, -60}
-            });
-        } else {
-            gui->input_wires[ix]->set_points({});
-        }
-
-        Component<Dropdown>* dropdowns = gui->dropdowns.data();
-        for (int i = 0; i < gui->problem->input_ports.size(); ++i) {
-            int select_i = dropdowns[i]->get_choice();
-            if (select_i == -1 || i == ix) {
-                continue;
-            }
-            std::size_t port_i = gui->inputport_map[i][select_i];
-            if (port_i == port && i != ix) {
-                dropdowns[i]->clear_choice();
-                gui->input_wires[i]->set_points({});
-                continue;
-            } 
-            auto* p = gui->processor->in_ports[port_i].get();
-            auto* ptr = gui->problem->input_ports[i].check_port(p);
-            gui->problem->input_ports[i].set_port(ptr);
-        }
-        gui->problem->reset();
-        gui->processor->reset();
-    };
-
-    void(*on_out_dropdown)(int64_t, int, ProcessorGui*) = [](int64_t select, int ix, ProcessorGui* gui) {
-        for (auto& port: gui->problem->output_ports) {
-            port.set_port(nullptr);
-        }
-        std::size_t port = -1;
-
-        if (select != -1) {
-            port = gui->outputport_map[ix][select];
-            auto* p = gui->processor->out_ports[port].get();
-            auto* ptr = gui->problem->output_ports[ix].check_port(p);
-            gui->problem->output_ports[ix].set_port(ptr);
-            LOG_DEBUG("%d, %d", ix, gui->output_wires.size());
-            gui->output_wires[ix]->set_points({
-                       {30 + 110.0f * ix, BOX_SIZE + 140}, {70 + 110.0f * ix, BOX_SIZE + 140}, {50 + 110.0f * port, BOX_SIZE + 80},
-                       {70 + 110.0f * ix, BOX_SIZE + 140}, {50 + 110.0f * port, BOX_SIZE + 80}, {90 + 110.0f * port, BOX_SIZE + 80},
-                       {30 + 110.0f * ix, BOX_SIZE + 140}, {70 + 110.0f * ix, BOX_SIZE + 140}, {30 + 110.0f * ix, BOX_SIZE + 200},
-                       {70 + 110.0f * ix, BOX_SIZE + 140}, {70 + 110.0f * ix, BOX_SIZE + 200}, {30 + 110.0f * ix, BOX_SIZE + 200},
-                       {50 + 110.0f * port, BOX_SIZE + 80}, {90 + 110.0f * port, BOX_SIZE + 80}, {50 + 110.0f * port, BOX_SIZE + 60},
-                       {90 + 110.0f * port, BOX_SIZE + 80}, {90 + 110.0f * port, BOX_SIZE + 60}, {50 + 110.0f * port, BOX_SIZE + 60}
-            });
-        } else {
-            gui->output_wires[ix]->set_points({});
-        }
-
-        Component<Dropdown>* dropdowns = gui->dropdowns.data() + gui->problem->input_ports.size();
-        for (int i = 0; i < gui->problem->output_ports.size(); ++i) {
-            int select_i = dropdowns[i]->get_choice();
-            if (select_i == -1 || i == ix) {
-                continue;
-            }
-            std::size_t port_i = gui->outputport_map[i][select_i];
-            if (port_i == port && i != ix) {
-                dropdowns[i]->clear_choice();
-                continue;
-            } 
-            auto* p = gui->processor->out_ports[port_i].get();
-            auto* ptr = gui->problem->output_ports[i].check_port(p);
-            gui->problem->output_ports[i].set_port(ptr);
-        }
-        gui->problem->reset();
-        gui->processor->reset();
-    };
-
     for (int i = 0; i < problem->input_ports.size(); ++i) {
-        const std::string& name = problem->input_ports[i].name;
+        const std::string name = "Input " + std::to_string(i);
         auto box = comps.add(TextBox(10 + 110 * i, -280 + 80 / 2 - BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, name, *window_state));
         problem_inputs.push_back(box);
         std::string s = problem->format_input(i);
         box = comps.add(TextBox(10 + 110 * i, -280 + 80 / 2, 80, BOX_LINE_HEIGHT, s, *window_state));
         problem_inputs.push_back(box);
-        input_wires.emplace_back(comps.add(Polygon({})));
-
-        inputport_map.emplace_back();
-
-        std::vector<std::string> port_names {};
-        for (int j = 0; j < processor->in_ports.size(); ++j) {
-            auto* port = processor->in_ports[j].get();
-            BytePort* p = problem->input_ports[i].check_port(port);
-            if (p != nullptr) {
-                port_names.push_back(port->get_name());
-                inputport_map.back().push_back(j);
-            }
-        }
-
-        dropdowns.push_back(comps.add(Dropdown(110 * i, -280 + 90, 100, 40, "Select - ", port_names, *window_state), on_in_dropdown, i, this));
         comps.add(Box(10 + 110 * i, -280, 80, 80, 2));
     }
 
     for (int i = 0; i < problem->output_ports.size(); ++i) {
-        const std::string& name = problem->output_ports[i].name;
+        const std::string name = "Output " + std::to_string(i);
         auto box = comps.add(TextBox(10 + 100 * i, BOX_SIZE + 200 + 80 / 2 - BOX_LINE_HEIGHT, 80, BOX_LINE_HEIGHT, name, *window_state));
         problem_outputs.push_back(box);
         std::string s = problem->format_output(i);
         box = comps.add(TextBox(10 + 100 * i, BOX_SIZE + 200 + 80 /2, 80, BOX_LINE_HEIGHT, s, *window_state));
         problem_outputs.push_back(box);
-        output_wires.emplace_back(comps.add(Polygon({})));
-
-        outputport_map.emplace_back();
-
-        std::vector<std::string> port_names {};
-        for (int j = 0; j < processor->out_ports.size(); ++j) {
-            auto* port = processor->out_ports[j].get();
-            BytePort* p = problem->output_ports[i].check_port(port);
-            if (p != nullptr) {
-                port_names.push_back(port->get_name());
-                outputport_map.back().push_back(j);
-            }
-        }
-
-        dropdowns.push_back(comps.add(Dropdown(110 * i, BOX_SIZE + 150, 100, 40, "Select - ", port_names, *window_state), on_out_dropdown, i, this));
         comps.add(Box(10 + 110 * i, BOX_SIZE + 200, 80, 80, 2));
     }
 
     comps.add(Box(BOX_SIZE - 120, 0, 120, 100, 2));
+
+    int count = processor->port_layout.up;
+    int pw = (BOX_SIZE - 20) / count;
+    int ps = pw / 2 - 20 + 10;
+    int px = 0;
+    for (int i = 0; i < count; ++i, ++px) {
+        comps.add(Polygon({{ps + 10.0f + pw * i, -15.0f},
+                          {ps + 40.0f + pw * i, 0.0f},
+                          {ps + 30.0f + pw * i, -15.0f},
+                          {static_cast<float>(ps) + pw * i, 0.0f},
+                          {ps + 40.0f + pw * i, 0.0f},
+                          {ps + 10.0f + pw * i, -15.0f}
+                          }))->set_border_color(0x7f, 0x7f, 0x7f, 0xff);
+        std::string name = processor->port_layout.name(px);
+        comps.add(TextBox(ps + pw * i, -54, 40, 50, name, *window_state));
+    }
+    count = processor->port_layout.right;
+    pw = (BOX_SIZE - 20) / count;
+    ps = pw / 2 - 20 + 10;
+    for (int i = 0; i < count; ++i, ++px) {
+        comps.add(Polygon({{BOX_SIZE + 15.0f, ps + 10.0f + pw * i},
+                           {BOX_SIZE, ps + 40.0f + pw * i},
+                           {BOX_SIZE + 15.0f, ps + 30.0f + pw *i},
+                           {BOX_SIZE, static_cast<float>(ps) + pw * i},
+                           {BOX_SIZE, ps + 40.0f + pw * i},
+                           {BOX_SIZE + 15.0f, ps + 10.0f + pw * i}
+                          }))->set_border_color(0x7f, 0x7f, 0x7f, 0xff);
+        std::string name = processor->port_layout.name(px);
+        comps.add(TextBox(BOX_SIZE + 5, ps + pw * i, 50, 40, name, *window_state));
+    }
+    count = processor->port_layout.down;
+    pw = (BOX_SIZE - 20) / count;
+    ps = pw / 2 - 20 + 10;
+    for (int i = 0; i < count; ++i, ++px) {
+        comps.add(Polygon({{ps + 10.0f + pw * i, BOX_SIZE + 15.0f},
+                           {ps + 40.0f + pw * i, BOX_SIZE},
+                           {ps + 30.0f + pw *i, BOX_SIZE + 15.0f},
+                           {static_cast<float>(ps) + pw * i, BOX_SIZE},
+                           {ps + 40.0f + pw * i, BOX_SIZE},
+                           {ps + 10.0f + pw * i, BOX_SIZE + 15.0f}
+                          }))->set_border_color(0x7f, 0x7f, 0x7f, 0xff);
+        std::string name = processor->port_layout.name(px);
+        comps.add(TextBox(ps + pw * i - 4, BOX_SIZE + 10, 50, 40, name, *window_state));
+    }
+    count = processor->port_layout.left;
+    pw = (BOX_SIZE - 20) / count;
+    ps = pw / 2 - 20 + 10;
+    for (int i = 0; i < count; ++i, ++px) {
+        comps.add(Polygon({{-15.0f, ps + 10.0f + pw * i},
+                           {0.0f, ps + 40.0f + pw * i},
+                           {-15.0f, ps + 30.0f + pw *i},
+                           {0.0f, static_cast<float>(ps) + pw * i},
+                           {0.0f, ps + 40.0f + pw * i},
+                           {-15.0f, ps + 10.0f + pw * i}
+                          }))->set_border_color(0x7f, 0x7f, 0x7f, 0xff);
+        std::string name = processor->port_layout.name(px);
+        comps.add(TextBox(-54, ps + pw * i, 50, 40, name, *window_state));
+    }
 }
 
 void ProcessorGui::update() {
@@ -253,18 +171,6 @@ void ProcessorGui::update() {
         }
     }
 
-    for (uint64_t i = 0; i < processor->in_ports.size(); ++i) { 
-        auto& port = in_ports[2 * i + 1];
-        if (processor->in_ports[i]->format_new(s)) {
-            port->set_text(s);
-        }
-    }
-    for (uint64_t i = 0; i < processor->out_ports.size(); ++i) { 
-        auto& port = out_ports[2 * i + 1];
-        if (processor->out_ports[i]->format_new(s)) {
-            port->set_text(s);
-        }
-    }
     for (uint64_t i = 0; i < problem->input_ports.size(); ++i) { 
         auto& port = problem_inputs[2 * i + 1];
         if (problem->poll_input(i, s)) {

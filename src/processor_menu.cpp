@@ -479,8 +479,8 @@ private:
 
 class InfoPort : public OverlayMenu {
 public:
-    InfoPort(State *parent, PortTemplate &port, bool input, feature_t features)
-        : OverlayMenu(parent), port{port}, input{input}, features{features} {}
+    InfoPort(State *parent, PortTemplate &port, feature_t features)
+        : OverlayMenu(parent), port{port}, features{features} {}
 
     void init(WindowState *window_state) {
         OverlayMenu::init(window_state);
@@ -538,7 +538,6 @@ private:
     }
 
     PortTemplate &port;
-    const bool input;
     const feature_t features;
 };
 
@@ -609,25 +608,16 @@ void ProcessorMenu::layout_instructions() {
     int w = (MENU_WIDTH - 40 - 5 * 4) / 5;
 
     std::string inports;
-    if (templates[selected_ix].in_ports.size() == 1) {
-        inports = "1 input port";
+    if (templates[selected_ix].ports.size() == 1) {
+        inports = "1 port";
     } else {
-        inports =
-            std::to_string(templates[ix].in_ports.size()) + " input ports";
+        inports = std::to_string(templates[ix].ports.size()) + " ports";
     }
-    input_ports->set_text(std::move(inports));
-    std::string outports;
-    if (templates[ix].out_ports.size() == 1) {
-        outports = "1 output port";
-    } else {
-        outports =
-            std::to_string(templates[ix].out_ports.size()) + " output ports";
-    }
-    output_ports->set_text(std::move(outports));
+    ports->set_text(std::move(inports));
 
     void (*add_inport)(ProcessorMenu *) = [](ProcessorMenu *self) {
-        std::string name = "A";
-        auto &ports = self->templates[self->selected_ix].in_ports;
+        /*std::string name = "A";
+        auto &ports = self->templates[self->selected_ix].ports;
         for (std::size_t i = 0; i < ports.size();) {
             if (ports[i].name == name) {
                 name[0] += 1;
@@ -637,21 +627,7 @@ void ProcessorMenu::layout_instructions() {
             }
         }
         ports.push_back({name, PortDatatype::BYTE, PortType::BLOCKING});
-        self->layout_instructions();
-    };
-    void (*add_outport)(ProcessorMenu *) = [](ProcessorMenu *self) {
-        std::string name = "Z";
-        auto &ports = self->templates[self->selected_ix].out_ports;
-        for (std::size_t i = 0; i < ports.size();) {
-            if (ports[i].name == name) {
-                name[0] -= 1;
-                i = 0;
-            } else {
-                ++i;
-            }
-        }
-        ports.push_back({name, PortDatatype::BYTE, PortType::BLOCKING});
-        self->layout_instructions();
+        self->layout_instructions();*/
     };
     void (*remove_port)(ProcessorMenu *, std::vector<PortTemplate> *,
                         std::size_t) = [](ProcessorMenu *self,
@@ -668,43 +644,27 @@ void ProcessorMenu::layout_instructions() {
         self->comps.enable_hover(false);
         self->instr_comps.enable_hover(false);
         self->next_res.action = StateStatus::PUSH;
-        bool input = ports == &self->templates[self->selected_ix].in_ports;
         self->next_res.new_state =
-            new InfoPort(self, ports->at(ix), input,
+            new InfoPort(self, ports->at(ix),
                          self->templates[self->selected_ix].features);
     };
 
-    for (i = 0; i < templates[ix].in_ports.size(); ++i) {
+    for (i = 0; i < templates[ix].ports.size(); ++i) {
         c.add(Box(BASE_X + 20 + (w + 5) * i, FIELDS_BASE + 420, w, 75, 2));
+        std::string name = templates[ix].port_layout.name(i);
         c.add(TextBox(BASE_X + 20 + (w + 5) * i, FIELDS_BASE + 435, w, 5,
-                      templates[ix].in_ports[i].name, *window_state));
+                      name, *window_state));
         c.add(Button(BASE_X + 25 + (w + 5) * i, FIELDS_BASE + 450, 40, 40, "i",
                      *window_state),
-              info_port, this, &templates[ix].in_ports, i);
+              info_port, this, &templates[ix].ports, i);
         c.add(Button(BASE_X + 20 + w - 45 + (w + 5) * i, FIELDS_BASE + 450, 40,
                      40, "x", *window_state),
-              remove_port, this, &templates[ix].in_ports, i);
+              remove_port, this, &templates[ix].ports, i);
     }
     if (i < 5) {
         c.add(Button(BASE_X + 20 + (w + 5) * i, FIELDS_BASE + 420, w, 75, "+",
                      *window_state),
               add_inport, this);
-    }
-    for (i = 0; i < templates[ix].out_ports.size(); ++i) {
-        c.add(Box(BASE_X + 20 + (w + 5) * i, FIELDS_BASE + 530, w, 75, 2));
-        c.add(TextBox(BASE_X + 20 + (w + 5) * i, FIELDS_BASE + 545, w, 5,
-                      templates[ix].out_ports[i].name, *window_state));
-        c.add(Button(BASE_X + 25 + (w + 5) * i, FIELDS_BASE + 560, 40, 40, "i",
-                     *window_state),
-              info_port, this, &templates[ix].out_ports, i);
-        c.add(Button(BASE_X + 20 + w - 45 + (w + 5) * i, FIELDS_BASE + 560, 40,
-                     40, "x", *window_state),
-              remove_port, this, &templates[ix].out_ports, i);
-    }
-    if (i < 5) {
-        c.add(Button(BASE_X + 20 + (w + 5) * i, FIELDS_BASE + 530, w, 75, "+",
-                     *window_state),
-              add_outport, this);
     }
 }
 
@@ -855,13 +815,9 @@ void ProcessorMenu::init(WindowState *window_state) {
     features = comps.add(TextBox(BASE_X + 30, FIELDS_BASE + 285,
                                  MENU_WIDTH - 60, 5, "", *window_state));
     features->set_align(Alignment::LEFT);
-    input_ports = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 400,
+    ports = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 400,
                                     MENU_WIDTH - 40, 5, "", *window_state));
-    input_ports->set_align(Alignment::LEFT);
-
-    output_ports = comps.add(TextBox(BASE_X + 20, FIELDS_BASE + 510,
-                                     MENU_WIDTH - 40, 5, "", *window_state));
-    output_ports->set_align(Alignment::LEFT);
+    ports->set_align(Alignment::LEFT);
 
     auto inst_title =
         comps.add(TextBox(BASE_X + MENU_WIDTH + 20, BASE_Y + 30, 120, 5,

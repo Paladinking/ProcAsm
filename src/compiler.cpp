@@ -12,10 +12,8 @@ std::string operand_name(uint32_t operand, DataSize size) {
     switch (operand) {
     case GEN_REG:
         return "register";
-    case IN_PORT:
-        return "input port";
-    case OUT_PORT:
-        return "output port";
+    case PORT:
+        return "port";
     case LABEL:
         return "label";
     case GEN_IMM:
@@ -143,11 +141,11 @@ void get_opers(InstructionSlotType i, feature_t features,
     switch (i) {
     case InstructionSlotType::IN:
         opers.push_back({GEN_REG, true});
-        opers.push_back({IN_PORT, true});
+        opers.push_back({PORT, true});
         return;
     case InstructionSlotType::OUT:
         opers.push_back({GEN_REG, true});
-        opers.push_back({OUT_PORT, true});
+        opers.push_back({PORT, true});
         return;
     case InstructionSlotType::MOVE_8:
         opers.push_back({GEN_REG, true});
@@ -179,7 +177,7 @@ std::string instruction_mnemonic(InstructionSlotType i, feature_t features) {
         if (oper.type & GEN_REG) {
             res += "register|";
         }
-        if (oper.type & (IN_PORT | OUT_PORT)) {
+        if (oper.type & (PORT)) {
             res += "port|";
         }
         if (oper.type & LABEL) {
@@ -277,14 +275,13 @@ feature_t instruction_features(InstructionSlotType slot) {
 }
 
 Compiler::Compiler(const RegisterFile &registers,
-                   std::vector<std::string> in_ports,
-                   std::vector<std::string> out_ports,
+                   std::vector<std::string> ports, 
                    std::vector<Instruction> &instructions,
                    const InstructionSet &instruction_set,
                    feature_t features)
-    : registers{registers}, in_ports{std::move(in_ports)},
-      out_ports{std::move(out_ports)}, instructions{instructions},
-      instruction_set{instruction_set}, features{features} {}
+    : registers{registers}, ports{std::move(ports)},
+      instructions{instructions}, instruction_set{instruction_set},
+      features{features} {}
 
 Instruction Compiler::parse(
     InstructionSlotType slot, const std::vector<OperandSlot> &slot_operands,
@@ -321,19 +318,11 @@ Instruction Compiler::parse(
                 continue;
             }
         }
-        if ((slot_operands[slot_ix].type & IN_PORT) != 0) {
-            auto pos = std::find(in_ports.begin(), in_ports.end(), part);
-            if (pos != in_ports.end()) {
-                out_operands[i - 1].type = IN_PORT;
-                out_operands[i - 1].port = pos - in_ports.begin();
-                continue;
-            }
-        }
-        if ((slot_operands[slot_ix].type & OUT_PORT) != 0) {
-            auto pos = std::find(out_ports.begin(), out_ports.end(), part);
-            if (pos != out_ports.end()) {
-                out_operands[i - 1].type = OUT_PORT;
-                out_operands[i - 1].port = pos - out_ports.begin();
+        if ((slot_operands[slot_ix].type & PORT) != 0) {
+            auto pos = std::find(ports.begin(), ports.end(), part);
+            if (pos != ports.end()) {
+                out_operands[i - 1].type = PORT;
+                out_operands[i - 1].port = pos - ports.begin();
                 continue;
             }
         }
@@ -521,12 +510,9 @@ bool Compiler::compile(const std::vector<std::string> &lines,
                 base = base + sprintf(base, "%llu, ", i.operands[ix].imm_u);
             } else if (i.operands[ix].type == LABEL) {
                 base = base + sprintf(base, "%d, ", i.operands[ix].label);
-            } else if (i.operands[ix].type == IN_PORT) {
+            } else if (i.operands[ix].type == PORT) {
                 base = base + sprintf(base, "%s, ",
-                                      in_ports[i.operands[ix].port].c_str());
-            } else if (i.operands[ix].type == OUT_PORT) {
-                base = base + sprintf(base, "%s, ",
-                                      out_ports[i.operands[ix].port].c_str());
+                                      ports[i.operands[ix].port].c_str());
             } else {
                 break;
             }

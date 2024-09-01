@@ -61,25 +61,26 @@ typedef uint64_t feature_t;
 namespace ProcessorFeature {
 constexpr feature_t ALU = 1 << 0;
 constexpr feature_t REGISTER_FILE = 1 << 1;
-constexpr feature_t ALU_IMM = 1 << 2;
-constexpr feature_t ZERO_FLAG = 1 << 3;
-constexpr feature_t CARRY_FLAG = 1 << 4;
-constexpr feature_t REG_16 = 1 << 5;
-constexpr feature_t REG_32 = 1 << 6;
-constexpr feature_t REG_64 = 1 << 7;
-constexpr feature_t GEN_FLOAT = 1 << 8;
-constexpr feature_t REG_FLOAT = 1 << 9;
-constexpr feature_t REG_DOUBLE = 1 << 10;
-constexpr feature_t FPU = 1 << 11;
-constexpr feature_t PORT_16 = 1 << 12;
-constexpr feature_t PORT_32 = 1 << 13;
-constexpr feature_t PORT_64 = 1 << 14;
+constexpr feature_t INOUT_PORTS = 1 << 2;
+constexpr feature_t ALU_IMM = 1 << 3;
+constexpr feature_t ZERO_FLAG = 1 << 4;
+constexpr feature_t CARRY_FLAG = 1 << 5;
+constexpr feature_t REG_16 = 1 << 6;
+constexpr feature_t REG_32 = 1 << 7;
+constexpr feature_t REG_64 = 1 << 8;
+constexpr feature_t GEN_FLOAT = 1 << 9;
+constexpr feature_t REG_FLOAT = 1 << 10;
+constexpr feature_t REG_DOUBLE = 1 << 11;
+constexpr feature_t FPU = 1 << 12;
+constexpr feature_t PORT_16 = 1 << 13;
+constexpr feature_t PORT_32 = 1 << 14;
+constexpr feature_t PORT_64 = 1 << 15;
 
-constexpr std::size_t COUNT = 15;
+constexpr std::size_t COUNT = 16;
 
 constexpr feature_t ALL =
-    ALU | REGISTER_FILE | ALU_IMM | ZERO_FLAG | CARRY_FLAG |
-    REG_16 | REG_32 | REG_64 | GEN_FLOAT | REG_FLOAT | REG_DOUBLE
+    ALU | INOUT_PORTS | REGISTER_FILE | ALU_IMM | ZERO_FLAG | CARRY_FLAG
+    | REG_16 | REG_32 | REG_64 | GEN_FLOAT | REG_FLOAT | REG_DOUBLE
     | FPU | PORT_16 | PORT_32 | PORT_64;
 
 inline constexpr flag_t flags(feature_t features) {
@@ -95,6 +96,7 @@ inline std::string string(feature_t features) {
         }
     };
     add(ALU, "ALU");
+    add(INOUT_PORTS, "Problem ports");
     add(REGISTER_FILE, "Register file");
     add(ALU_IMM, "ALU Immediate operands");
     add(ZERO_FLAG, "Z flag");
@@ -122,6 +124,7 @@ constexpr inline uint32_t area(feature_t features) {
     uint32_t area = 0;
 #define AREA_ADD(feature, a) if (features & feature) { area += a; }
     AREA_ADD(ALU, 50);
+    AREA_ADD(INOUT_PORTS, 20);
     AREA_ADD(REGISTER_FILE, 20);
     AREA_ADD(ALU_IMM, 16);
     AREA_ADD(ZERO_FLAG, 10);

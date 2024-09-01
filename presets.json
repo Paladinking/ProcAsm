@@ -2,25 +2,49 @@
     "processors": [
         {
             "name": "The json basic",
-            "in_ports": [
+            "ports": [
                 {
-                    "name": "A",
+                    "name": "U1",
                     "data_type": "BYTE",
                     "port_type": "BLOCKING"
                 },
                 {
-                    "name": "B",
+                    "name": "U2",
                     "data_type": "BYTE",
                     "port_type": "BLOCKING"
-                }
-            ],
-            "out_ports": [
+                },
                 {
-                    "name": "Z",
+                    "name": "R1",
+                    "data_type": "BYTE",
+                    "port_type": "BLOCKING"
+                },
+                {
+                    "name": "R2",
+                    "data_type": "BYTE",
+                    "port_type": "BLOCKING"
+                },
+                {
+                    "name": "D1",
+                    "data_type": "BYTE",
+                    "port_type": "BLOCKING"
+                },
+                {
+                    "name": "D2",
+                    "data_type": "BYTE",
+                    "port_type": "BLOCKING"
+                },
+                {
+                    "name": "L1",
+                    "data_type": "BYTE",
+                    "port_type": "BLOCKING"
+                },
+                {
+                    "name": "L2",
                     "data_type": "BYTE",
                     "port_type": "BLOCKING"
                 }
             ],
+            "port_layout": 33686018,
             "registers": [
                 {
                     "name": "R0",

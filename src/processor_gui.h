@@ -43,16 +43,7 @@ private:
     std::vector<Component<Polygon>> input_wires{};
     std::vector<Component<Polygon>> output_wires{};
 
-    // Contains indicies into processor->in_ports for each problem input
-    std::vector<std::vector<std::size_t>> inputport_map;
-
-    // Contains indicies into processor->out_ports for each problem output
-    std::vector<std::vector<std::size_t>> outputport_map;
-
     std::vector<Component<TextBox>> registers {};
-
-    std::vector<Component<TextBox>> in_ports {};
-    std::vector<Component<TextBox>> out_ports {};
 
     Component<TextBox> flags {};
     Component<TextBox> ticks {};

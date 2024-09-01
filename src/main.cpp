@@ -82,21 +82,22 @@ int main(int argv, char* argc[]) {
         JsonObject obj = json::read_from_string(str);
         if (!obj.has_key_of_type<JsonList>("processors")) {
             LOG_CRITICAL("Failed parsing processor templates");
+            return 1;
         }
         for (auto& o : obj.get<JsonList>("processors")) {
             if (JsonObject* obj = o.get<JsonObject>()) {
                 templates.emplace_back();
                 if (!templates.back().read_from_json(*obj)) {
                     LOG_CRITICAL("Failed parsing processor template");
-                    return 1;
+                    templates.pop_back();
+                    continue;
                 }
             } else {
-                LOG_CRITICAL("Failed parsing processor templates");
-                return 1;
+                LOG_CRITICAL("Failed parsing processor template");
             }
         }
         if (templates.size() == 0) {
-            LOG_CRITICAL("No processor templates in file");
+            LOG_CRITICAL("No valid processor templates in file");
             return 1;
         }
     } catch (json_exception& e) {
@@ -104,6 +105,7 @@ int main(int argv, char* argc[]) {
         return 1;
     }
 
+    LOG_DEBUG("%d processors loaded", templates.size());
     StateGame game {new GameState(std::move(templates)), 1920, 1080, "Text box!!!"};
     try {
         game.create();

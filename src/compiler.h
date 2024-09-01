@@ -10,13 +10,13 @@
 #include <unordered_map>
 
 constexpr uint32_t GEN_REG = 1;
-constexpr uint32_t IN_PORT = 2;
+constexpr uint32_t PORT = 2;
 constexpr uint32_t OUT_PORT = 4;
 constexpr uint32_t LABEL = 8;
 constexpr uint32_t GEN_IMM = 16;
 constexpr uint32_t FLOAT_REG = 32;
 
-constexpr uint32_t ANY_OPER_TYPE = GEN_REG | IN_PORT | OUT_PORT |
+constexpr uint32_t ANY_OPER_TYPE = GEN_REG | PORT |
                                    LABEL | GEN_IMM | FLOAT_REG;
 
 struct OperandSlot {
@@ -46,8 +46,7 @@ extern const InstructionSet ALL_INSTRUCTIONS;
 
 class Compiler {
 public:
-    Compiler(const RegisterFile& registers, std::vector<std::string> in_ports, std::vector<std::string> out_ports,
-            std::vector<Instruction>& instructions, const InstructionSet& instruction_set, feature_t features);
+    Compiler(const RegisterFile& registers, std::vector<std::string> ports, std::vector<Instruction>& instructions, const InstructionSet& instruction_set, feature_t features);
     bool compile(const std::vector<std::string>& lines, std::vector<ErrorMsg>& errors);
 
 private:
@@ -59,8 +58,7 @@ private:
     const InstructionSet& instruction_set;
     std::vector<Instruction>& instructions;
 
-    std::vector<std::string> in_ports;
-    std::vector<std::string> out_ports;
+    std::vector<std::string> ports;
 
     feature_t features;
 
