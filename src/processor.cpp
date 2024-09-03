@@ -335,6 +335,17 @@ bool Processor::is_valid() const noexcept { return valid; }
 
 bool Processor::is_running() const noexcept { return running; }
 
+void Processor::start() noexcept {
+    if (!valid) {
+        return;
+    }
+    running = true;
+}
+
+void Processor::stop() noexcept {
+    running = false;
+}
+
 void Processor::reset() {
     running = false;
     pc = 0;

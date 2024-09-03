@@ -87,6 +87,10 @@ public:
 
     bool is_valid() const noexcept;
 
+    void start() noexcept;
+
+    void stop() noexcept;
+
     bool is_running() const noexcept;
 
     void invalidate();

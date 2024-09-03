@@ -60,8 +60,34 @@ void GameState::init(WindowState *window_state) {
 
     top_comps.set_window_state(window_state);
 
-    top_comps.add(Button(BOX_X + BOX_SIZE + 20, BOX_Y + 20, 40, 40, "i", *window_state), proc_cb, this);
+    top_comps.add(Button(BOX_X + BOX_SIZE + 20, BOX_Y + 20, 40, 40, "i", *window_state),
+                  proc_cb, this);
 
+    void(*run_pressed)(GameState*) = [](GameState* self) {
+        if (self->processor.is_valid()) {
+            if (self->processor.is_running()) {
+                self->run_button->set_text("Run");
+                self->processor.stop();
+            } else {
+                self->run_button->set_text("Stop");
+                self->processor.start();
+            }
+        }
+    };
+
+    run_button = top_comps.add(Button(BOX_X + BOX_SIZE + 20,
+                                      BOX_Y + BOX_SIZE + 200,
+                                      80, 80, "Run", *window_state), run_pressed, this);
+
+    void(*step_pressed)(GameState*) = [](GameState* self) {
+        LOG_DEBUG("Step pressed");
+        if (self->processor.is_valid()) {
+            self->clock_tick();
+            self->processor_gui.update();
+        }
+    };
+
+    top_comps.add(Button(BOX_X + BOX_SIZE + 120, BOX_Y + BOX_SIZE + 200, 80, 80, "Step", *window_state), step_pressed, this);
     next_state.action = StateStatus::NONE;
 
     set_font_size();
@@ -105,11 +131,20 @@ void GameState::resume() {
     box.set_errors(errors);
 }
 
+void GameState::clock_tick() {
+    problem.in_tick();
+    processor.in_tick();
+
+    problem.out_tick();
+    processor.out_tick();
+
+    processor.clock_tick();
+}
+
 void GameState::render() {
     box.render();
     processor_gui.render();
     top_comps.render(0, 0);
-
 }
 void GameState::tick(const Uint64 delta, StateStatus &res) {
     res = next_state;
@@ -131,13 +166,21 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
     if (processor.is_running()) {
         ticks_passed += delta;
         while (ticks_passed > TICK_DELAY) {
-            problem.out_tick();
-            processor.clock_tick();
-            problem.in_tick();
+            clock_tick();
             ticks_passed -= TICK_DELAY;
         }
     }
-    processor_gui.update();
+
+    if (processor.is_running()) {
+        if (run_button->get_text()[0] != 'S') {
+            run_button->set_text("Stop");
+        }
+        processor_gui.update();
+    } else {
+        if (run_button->get_text()[0] != 'R') {
+            run_button->set_text("Run");
+        }
+    }
 }
 
 void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {

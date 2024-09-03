@@ -27,40 +27,10 @@ void ProcessorGui::set_processor(Processor* new_processor) {
 
     comps.clear();
 
-    Callback run_pressed = [](ProcessorGui* gui) {
-        if (gui->processor->is_valid()) {
-            if (gui->processor->is_running()) {
-                gui->run->set_text("Run");
-                gui->processor->running = false;
-            } else {
-                gui->run->set_text("Stop");
-                gui->processor->running = true;
-            }
-        }
-    };
-
-    Callback step_pressed = [](ProcessorGui* gui) {
-        LOG_DEBUG("Step pressed");
-        if (gui->processor->is_valid()) {
-            gui->problem->out_tick();
-            gui->processor->clock_tick();
-            gui->problem->in_tick();
-            auto ticks_str = "Ticks: " + std::to_string(gui->processor->ticks);
-            gui->ticks->set_text(ticks_str);
-        }
-    };
-
-    run = comps.add(Button(BOX_SIZE + 10, BOX_SIZE - 90, 80, 80, "Run", *window_state), run_pressed, this);
-    comps.add(Button(BOX_SIZE + 10, BOX_SIZE - 180, 80, 80, "Step", *window_state), step_pressed, this);
-
     Callback_u register_change = [](uint64_t reg, ProcessorGui* gui) {
         std::string name = gui->processor->registers.to_name_genreg(reg);
         auto val = gui->processor->registers.get_genreg(reg);
         gui->registers[reg]->set_text(name + ": " + std::to_string(val));
-    };
-
-    Callback_u ticks_change = [](uint64_t ticks, ProcessorGui* gui) {
-        gui->ticks->set_text("Ticks: " + std::to_string(ticks));
     };
 
     LOG_DEBUG("Reg count: %d", processor->registers.count_genreg());
@@ -160,16 +130,7 @@ void ProcessorGui::set_processor(Processor* new_processor) {
 
 void ProcessorGui::update() {
     std::string s;
-    if (processor->is_running()) {
-        if (run->get_text()[0] != 'S') {
-            run->set_text("Stop");
-        }
-        ticks->set_text("Ticks: " + std::to_string(processor->ticks));
-    } else {
-        if (run->get_text()[0] != 'R') {
-            run->set_text("Run");
-        }
-    }
+    ticks->set_text("Ticks: " + std::to_string(processor->ticks));
 
     for (uint64_t i = 0; i < problem->input_ports.size(); ++i) { 
         auto& port = problem_inputs[2 * i + 1];

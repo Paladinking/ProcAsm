@@ -32,6 +32,8 @@ public:
     void handle_focus_change(bool focus) override;
 
     void menu_change(bool visible);
+
+    void clock_tick();
 private:
     StateStatus next_state;
 
@@ -48,6 +50,7 @@ private:
     ProcessorGui processor_gui{};
 
     Components top_comps;
+    Component<Button> run_button;
 
     Uint64 ticks_passed = 0;
 
