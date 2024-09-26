@@ -43,8 +43,6 @@ private:
 
     bool mouse_down = false;
 
-    Editbox box;
-
     Processor processor;
     ByteProblem problem {};
     ProcessorGui processor_gui{};

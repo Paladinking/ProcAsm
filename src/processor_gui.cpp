@@ -8,7 +8,7 @@ typedef void(*Callback_i)(int64_t, ProcessorGui*);
 
 ProcessorGui::ProcessorGui() {}
 ProcessorGui::ProcessorGui(Processor* processor, ByteProblem* problem, int x, int y, WindowState* window_state) : processor{processor},
-    problem{problem}, x{x}, y{y}, window_state{window_state} {
+    problem{problem}, x{x}, y{y}, window_state{window_state}, box{x, y, *window_state} {
         comps.set_window_state(window_state);
         set_processor(processor);
 }
@@ -19,7 +19,6 @@ void ProcessorGui::set_processor(Processor* new_processor) {
 
     problem_inputs.clear();
     problem_outputs.clear();
-    dropdowns.clear();
 
     input_wires.clear();
     output_wires.clear();
@@ -126,6 +125,15 @@ void ProcessorGui::set_processor(Processor* new_processor) {
         std::string name = processor->port_layout.name(px);
         comps.add(TextBox(-54, ps + pw * i, 50, 40, name, *window_state));
     }
+
+    std::vector<ErrorMsg> errors;
+    const auto& text = box.get_text();
+    processor->compile_program(text, errors);
+    box.set_errors(errors);
+}
+
+void ProcessorGui::tick(Uint64 passed) {
+    box.tick(passed);
 }
 
 void ProcessorGui::update() {
@@ -159,6 +167,7 @@ void ProcessorGui::update() {
 }
 
 void ProcessorGui::render() const {
+    box.render();
     comps.render(x, y);
     
     if (processor->valid) {
@@ -174,10 +183,43 @@ void ProcessorGui::menu_change(bool visible) {
     comps.enable_hover(!visible);
 }
 
+void ProcessorGui::set_edit_text(std::string& text) {
+    box.set_text(text);
+    std::vector<ErrorMsg> errors;
+    processor->compile_program(box.get_text(), errors);
+    box.set_errors(errors);
+}
+
+const std::vector<std::string>& ProcessorGui::get_edit_text() const {
+    return box.get_text();
+}
+
 void ProcessorGui::set_dpi(double dpi_scale) {
     comps.set_dpi(dpi_scale);
 }
 
-void ProcessorGui::mouse_change(bool press) {
-    comps.handle_press(x, y, press);
+bool ProcessorGui::is_pressed(int x, int y) const {
+    return box.is_pressed(x, y);
+}
+
+void ProcessorGui::set_selected(bool selected) {
+    if (selected) {
+        box.select();
+    } else {
+        box.unselect();
+    }
+    if (!processor->is_valid()) {
+        std::vector<ErrorMsg> errors;
+        const auto& text = box.get_text();
+        processor->compile_program(text, errors);
+        box.set_errors(errors);
+    }
+}
+
+void ProcessorGui::input_char(char c) {
+    box.input_char(c);
+}
+
+void ProcessorGui::handle_keypress(const SDL_Keycode key) {
+    box.handle_keypress(key);
 }

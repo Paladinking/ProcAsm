@@ -21,7 +21,7 @@ public:
 
     Editbox() = default;
 
-    void render();
+    void render() const;
 
     void set_dpi_scale(double dpi);
 

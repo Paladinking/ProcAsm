@@ -121,7 +121,7 @@ void Editbox::set_errors(std::vector<ErrorMsg> msgs) {
     error_msg.clear();
     for (const auto &error : msgs) {
         error_msg.emplace_back(
-            -8 - BOX_TEXT_MARGIN,
+            -24 - BOX_TEXT_MARGIN,
             BOX_TEXT_MARGIN + static_cast<int>(error.pos.row) * BOX_LINE_HEIGHT,
             0, BOX_LINE_HEIGHT, error.msg, *window_state);
         error_msg.back().set_align(Alignment::RIGHT);
@@ -308,7 +308,7 @@ void Editbox::handle_keypress(SDL_Keycode key) {
     }
 }
 
-void Editbox::render() {
+void Editbox::render() const {
     SDL_SetRenderDrawColor(gRenderer, UI_BORDER_COLOR);
     SDL_Rect rect = {x, y, BOX_SIZE, BOX_SIZE};
     SDL_RenderFillRect(gRenderer, &rect);

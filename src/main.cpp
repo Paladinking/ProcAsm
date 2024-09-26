@@ -88,12 +88,12 @@ int main(int argv, char* argc[]) {
             if (JsonObject* obj = o.get<JsonObject>()) {
                 templates.emplace_back();
                 if (!templates.back().read_from_json(*obj)) {
-                    LOG_CRITICAL("Failed parsing processor template");
+                    LOG_ERROR("Failed parsing processor template");
                     templates.pop_back();
                     continue;
                 }
             } else {
-                LOG_CRITICAL("Failed parsing processor template");
+                LOG_ERROR("Failed parsing processor template");
             }
         }
         if (templates.size() == 0) {

@@ -44,9 +44,6 @@ void GameState::init(WindowState *window_state) {
     LOG_INFO("Physical size: %d, %d\n", window_state->window_width, window_state->window_height);
     LOG_INFO("Logical size: %d, %d\n", window_state->screen_width, window_state->screen_height);
 
-    box.~Editbox();
-    new (&box)Editbox{BOX_X, BOX_Y, *window_state };
-
     processor_gui.~ProcessorGui();
     new (&processor_gui)ProcessorGui(&processor, &problem, BOX_X, BOX_Y, window_state);
 
@@ -101,16 +98,11 @@ void GameState::init(WindowState *window_state) {
             if (str.back() == '\n') {
                 str.pop_back();
             }
-            box.set_text(str);
+            processor_gui.set_edit_text(str);
         }
         delete[] data;
         SDL_RWclose(file);
     }
-
-    std::vector<ErrorMsg> errors;
-    const auto& text = box.get_text();
-    processor.compile_program(text, errors);
-    box.set_errors(errors);
 }
 
 void GameState::resume() {
@@ -118,17 +110,10 @@ void GameState::resume() {
     processor_gui.menu_change(false);
     top_comps.enable_hover(true);
 
-    problem.reset();
-
     processor = templates[0].instantiate();
 
     processor_gui.set_processor(&processor);
-
-    std::vector<ErrorMsg> errors;
-    const auto& text = box.get_text();
     problem.reset();
-    processor.compile_program(text, errors);
-    box.set_errors(errors);
 }
 
 void GameState::clock_tick() {
@@ -142,7 +127,6 @@ void GameState::clock_tick() {
 }
 
 void GameState::render() {
-    box.render();
     processor_gui.render();
     top_comps.render(0, 0);
 }
@@ -152,7 +136,7 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
         LOG_DEBUG("Saving...");
         SDL_RWops* file = SDL_RWFromFile("program.txt", "w");
         if (file != nullptr) {
-            const auto& lines = box.get_text();
+            const auto& lines = processor_gui.get_edit_text();
             for (const std::string& s : lines) {
                 SDL_RWwrite(file, s.c_str(), 1, s.size());
                 SDL_RWwrite(file, "\n", 1, 1);
@@ -162,7 +146,8 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
         return;
     }
 
-    box.tick(delta);
+    processor_gui.tick(delta);
+
     if (processor.is_running()) {
         ticks_passed += delta;
         while (ticks_passed > TICK_DELAY) {
@@ -185,18 +170,10 @@ void GameState::tick(const Uint64 delta, StateStatus &res) {
 
 void GameState::handle_up(SDL_Keycode key, Uint8 mouse) {
     if (mouse == SDL_BUTTON_LEFT) {
-        processor_gui.mouse_change(false);
         top_comps.handle_press(0, 0, false);
-        if (!box.is_pressed(window_state->mouseX, window_state->mouseY) && mouse_down) {
-            box.unselect();
+        if (!processor_gui.is_pressed(window_state->mouseX, window_state->mouseY) && mouse_down) {
+            processor_gui.set_selected(false);
             SDL_StopTextInput();
-            if (!processor.is_valid()) {
-                std::vector<ErrorMsg> errors;
-                const auto& text = box.get_text();
-                problem.reset();
-                processor.compile_program(text, errors);
-                box.set_errors(errors);
-            }
         }
         mouse_down = false;
     }
@@ -206,19 +183,19 @@ void GameState::handle_down(const SDL_Keycode key, const Uint8 mouse) {
     if (key == SDLK_ESCAPE) {
         next_state.action = StateStatus::POP;
     } else if (mouse == SDL_BUTTON_LEFT) {
-        processor_gui.mouse_change(true);
-        top_comps.handle_press(0, 0, true);
-        if (box.is_pressed(window_state->mouseX, window_state->mouseY)) {
+        if (processor_gui.is_pressed(window_state->mouseX, window_state->mouseY)) {
             SDL_StartTextInput();
-            box.select();
+            processor_gui.set_selected(true);
             processor.invalidate();
+            problem.reset();
         } else {
             mouse_down = true;
-            box.unselect();
+            processor_gui.set_selected(false);
             SDL_StopTextInput();
         }
+        top_comps.handle_press(0, 0, true);
     } else {
-        box.handle_keypress(key);
+        processor_gui.handle_keypress(key);
     }
 }
 
@@ -228,12 +205,13 @@ void GameState::handle_textinput(const SDL_TextInputEvent &e) {
         return;
     }
     char c = e.text[0];
-    box.input_char(c);
+
+    processor_gui.input_char(c);
 }
 
 void GameState::handle_focus_change(bool focus) {
     if (!focus) {
-        box.unselect();
+        processor_gui.set_selected(false);
         mouse_down = false;
         SDL_StopTextInput();
     }
